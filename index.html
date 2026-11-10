@@ -1,0 +1,1317 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1720">
+<title>Mi Sandero</title>
+<style>
+:root{
+  --bg:#f4f5f7; --panel:#ffffff; --panel2:#f0f2f5; --txt:#15191f; --sub:#5b6573; --linea:#e2e5ea;
+  --acento:#2563eb; --acento-txt:#fff;
+  --verde:#15904f; --verde-bg:#e3f5ea; --amarillo:#b07800; --amarillo-bg:#fdf3d7;
+  --rojo:#c9362e; --rojo-bg:#fde5e3; --gris:#7a8491; --gris-bg:#eceef1;
+  --sombra:0 1px 2px rgba(0,0,0,.05),0 2px 8px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0f1720; --panel:#17212c; --panel2:#1e2a37; --txt:#e8edf2; --sub:#93a0af; --linea:#273443;
+    --acento:#4c8dff; --acento-txt:#fff;
+    --verde:#3ccf7f; --verde-bg:#143425; --amarillo:#f0b93a; --amarillo-bg:#3a2f12;
+    --rojo:#ff6b61; --rojo-bg:#3f1d1b; --gris:#8995a3; --gris-bg:#222e3b;
+    --sombra:none;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Ubuntu,sans-serif}
+button{font:inherit;cursor:pointer}
+.envoltura{max-width:1100px;margin:0 auto;padding:0 16px 96px}
+header{display:flex;align-items:center;gap:12px;padding:18px 0 10px}
+header h1{font-size:22px;margin:0;letter-spacing:-.01em}
+header .sub{color:var(--sub);font-size:14px}
+.pastilla{margin-left:auto;display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;font-size:14px;font-weight:600;background:var(--gris-bg);color:var(--gris);white-space:nowrap}
+.pastilla i{width:9px;height:9px;border-radius:50%;background:currentColor}
+.pastilla.conectado{background:var(--verde-bg);color:var(--verde)}
+.pastilla.conectando{background:var(--amarillo-bg);color:var(--amarillo)}
+.pastilla.error{background:var(--rojo-bg);color:var(--rojo)}
+.panel{background:var(--panel);border:1px solid var(--linea);border-radius:14px;padding:16px;box-shadow:var(--sombra)}
+.panel+.panel{margin-top:12px}
+h2{font-size:18px;margin:0 0 10px}
+h3{font-size:15px;margin:18px 0 8px;color:var(--sub);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.boton{border:0;border-radius:10px;padding:11px 18px;font-weight:600;background:var(--panel2);color:var(--txt)}
+.boton.primario{background:var(--acento);color:var(--acento-txt)}
+.boton.peligro{background:var(--rojo);color:#fff}
+.boton.grande{padding:15px 24px;font-size:17px}
+.boton:disabled{opacity:.5;cursor:default}
+select{font:inherit;padding:11px 12px;border-radius:10px;border:1px solid var(--linea);background:var(--panel2);color:var(--txt);min-width:0;flex:1}
+.fila{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.pasos{margin:0 0 14px;padding-left:22px;color:var(--sub)}
+.pasos li{margin:3px 0}
+.aviso{padding:10px 12px;border-radius:10px;background:var(--amarillo-bg);color:var(--txt);font-size:14px;margin-top:12px}
+.aviso.rojo{background:var(--rojo-bg)}
+.mensaje-con{color:var(--sub);font-size:14px;margin-top:10px}
+/* grabación */
+.grabando{position:sticky;top:0;z-index:5;display:none;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;margin:0 -16px 12px;background:var(--panel);border-bottom:1px solid var(--linea)}
+.grabando.si{display:flex}
+.punto{width:12px;height:12px;border-radius:50%;background:var(--rojo);animation:lat 1.4s infinite}
+@keyframes lat{50%{opacity:.25}}
+.grabando .que{font-weight:600}
+.grabando .cuanto{color:var(--sub);font-variant-numeric:tabular-nums}
+.grabando .acciones{margin-left:auto;display:flex;gap:8px}
+/* pestañas */
+nav{display:flex;gap:4px;margin:14px 0 12px;background:var(--panel2);border-radius:12px;padding:4px;overflow-x:auto}
+nav button{flex:1;border:0;background:none;color:var(--sub);padding:9px 12px;border-radius:9px;font-weight:600;white-space:nowrap}
+nav button.activo{background:var(--panel);color:var(--txt);box-shadow:var(--sombra)}
+nav .cuenta{display:inline-block;min-width:20px;padding:0 6px;border-radius:999px;background:var(--rojo);color:#fff;font-size:12px;margin-left:4px}
+.pestana{display:none}.pestana.activa{display:block}
+/* pestaña Claude */
+.md{line-height:1.55}
+.md h2{font-size:19px;margin:22px 0 6px;padding-top:14px;border-top:1px solid var(--linea)}
+.md h2:first-child{margin-top:0;padding-top:0;border-top:0}
+.md h3{font-size:16px;margin:14px 0 4px}
+.md p{margin:6px 0}.md ul,.md ol{margin:6px 0;padding-left:22px}.md li{margin:3px 0}
+.md table{border-collapse:collapse;font-size:13px;display:block;overflow-x:auto;margin:8px 0}
+.md td,.md th{border:1px solid var(--linea);padding:4px 7px;vertical-align:top;text-align:left}
+textarea.caja{font:inherit;width:100%;min-height:86px;padding:11px 12px;border-radius:10px;border:1px solid var(--linea);background:var(--panel2);color:var(--txt);resize:vertical}
+.nube-ok{color:var(--verde);font-weight:600}.nube-mal{color:var(--rojo);font-weight:600}
+/* resumen */
+.resumen{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.resumen .caja{flex:1;min-width:140px;padding:12px 14px;border-radius:12px;background:var(--panel);border:1px solid var(--linea)}
+.resumen .num{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums}
+.resumen .eti{color:var(--sub);font-size:14px}
+/* tarjetas */
+.rejilla{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.tarjeta{background:var(--panel);border:1px solid var(--linea);border-radius:14px;padding:14px;box-shadow:var(--sombra);border-left:5px solid var(--gris);min-width:0}
+.tarjeta.verde{border-left-color:var(--verde)}.tarjeta.amarillo{border-left-color:var(--amarillo)}.tarjeta.rojo{border-left-color:var(--rojo)}
+.tarjeta .nombre{font-size:14px;color:var(--sub);font-weight:600}
+.tarjeta .valor{font-size:34px;font-weight:700;line-height:1.1;margin:4px 0;font-variant-numeric:tabular-nums}
+.tarjeta .valor small{font-size:16px;color:var(--sub);font-weight:600;margin-left:4px}
+.tarjeta .valor.texto{font-size:20px}
+.estado{display:inline-block;font-size:13px;font-weight:600;padding:2px 8px;border-radius:6px;background:var(--gris-bg);color:var(--gris)}
+.estado.verde{background:var(--verde-bg);color:var(--verde)}.estado.amarillo{background:var(--amarillo-bg);color:var(--amarillo)}.estado.rojo{background:var(--rojo-bg);color:var(--rojo)}
+.tarjeta .msg{font-size:14px;margin-top:6px;min-height:20px}
+.tarjeta canvas{width:100%;height:38px;display:block;margin-top:8px}
+details{margin-top:8px;font-size:14px;color:var(--sub)}
+details summary{cursor:pointer;color:var(--acento);font-weight:600;list-style:none}
+details summary::-webkit-details-marker{display:none}
+details p{margin:6px 0}
+/* diagnóstico y sistemas */
+.diag{margin-bottom:14px}
+.diag .cabd{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin-bottom:10px}
+.diag .cabd h2{margin:0}
+.diag .cabd span{color:var(--sub);font-size:14px}
+.veredicto{font-size:17px;font-weight:600;padding:12px 14px;border-radius:12px;margin-bottom:10px}
+.veredicto.verde{background:var(--verde-bg)}.veredicto.amarillo{background:var(--amarillo-bg)}.veredicto.rojo{background:var(--rojo-bg)}.veredicto.gris{background:var(--gris-bg)}
+.etq-sis{display:inline-block;font-size:12px;font-weight:600;color:var(--sub);border:1px solid var(--linea);border-radius:6px;padding:0 6px;margin-left:6px;cursor:pointer;white-space:nowrap}
+.sistema{margin-top:22px}
+.sistema .cabs{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.sistema .cabs h3{margin:0;color:var(--txt);font-size:17px;text-transform:none;letter-spacing:0}
+.sistema .descs{color:var(--sub);font-size:14px;margin:4px 0 10px;max-width:760px}
+.sistema .hall-sis{margin-bottom:10px}
+.sistema .hall-sis .hallazgo{background:var(--panel);border:1px solid var(--linea)}
+.cifras{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:10px}
+.cifras div{background:var(--panel);border:1px solid var(--linea);border-radius:12px;padding:10px 12px}
+.cifras b{display:block;font-size:22px;font-variant-numeric:tabular-nums}
+.cifras span{color:var(--sub);font-size:13px}
+.repostaje{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px;color:var(--sub);margin-bottom:10px}
+.repostaje input[type=text]{width:90px;padding:8px 10px}
+/* cuadro rápido en directo */
+.cuadro-vivo{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:8px;margin-bottom:12px}
+.cuadro-vivo .cv{background:var(--panel);border:1px solid var(--linea);border-left:4px solid var(--gris);border-radius:12px;padding:10px 12px;box-shadow:var(--sombra)}
+.cuadro-vivo .cv.verde{border-left-color:var(--verde)}.cuadro-vivo .cv.amarillo{border-left-color:var(--amarillo)}.cuadro-vivo .cv.rojo{border-left-color:var(--rojo)}
+.cuadro-vivo .cv b{display:block;font-size:24px;line-height:1.15;font-variant-numeric:tabular-nums}
+.cuadro-vivo .cv span{color:var(--sub);font-size:13px}
+.cv i.gps,.cifras i.gps{display:block;font-style:normal;font-size:13px;font-weight:600;color:var(--sub);margin-top:2px;font-variant-numeric:tabular-nums}
+/* visor de gráficas de grabación */
+.barra-ses{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin:10px 0 12px}
+.pildoras{display:inline-flex;background:var(--panel2);border-radius:10px;padding:3px;gap:2px}
+.pildoras button{border:0;background:none;color:var(--sub);padding:6px 11px;border-radius:8px;font-size:14px;font-weight:600}
+.pildoras button.activo{background:var(--panel);color:var(--txt);box-shadow:var(--sombra)}
+.visor-graf{margin-top:10px;padding:12px;border-radius:12px;background:var(--panel2);border:1px solid var(--linea)}
+.visor-cursor{position:sticky;top:52px;z-index:4;background:var(--panel);border:1px solid var(--linea);border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:13px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-variant-numeric:tabular-nums}
+.graf-caja{background:var(--panel);border:1px solid var(--linea);border-radius:10px;padding:8px 10px;margin-bottom:8px}
+.graf-cab{display:flex;justify-content:space-between;gap:8px;font-size:13px;font-weight:600;margin-bottom:4px;flex-wrap:wrap}
+.graf-s{width:100%;height:110px;display:block;cursor:crosshair;touch-action:pan-y}
+.barra-prog{height:8px;background:var(--panel2);border-radius:999px;overflow:hidden;margin:8px 0 12px}
+.barra-prog div{height:100%;background:var(--verde);transition:width .25s}
+.boton.chico{padding:6px 11px;font-size:13px;border-radius:8px}
+/* averías */
+.codigo{display:flex;gap:14px;align-items:flex-start;padding:12px;border-radius:12px;background:var(--panel2);margin-bottom:8px}
+.codigo .cod{font:700 20px ui-monospace,SFMono-Regular,Menlo,monospace;min-width:76px}
+.codigo .desc{font-weight:600}
+.codigo .consejo{color:var(--sub);font-size:14px;margin-top:3px}
+.vacio{color:var(--sub);padding:10px 0}
+.lista-mon{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px}
+.mon{display:flex;gap:8px;align-items:center;padding:8px 10px;border-radius:10px;background:var(--panel2);font-size:15px}
+.mon b{font-size:13px;margin-left:auto}
+.mon.ok b{color:var(--verde)}.mon.no b{color:var(--amarillo)}
+table{border-collapse:collapse;width:100%;font-size:15px}
+td{padding:6px 4px;border-bottom:1px solid var(--linea)}
+td:last-child{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.peligro{margin-top:16px;border:1px dashed var(--rojo);border-radius:12px;padding:12px}
+/* pruebas */
+.pruebas{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.prueba h2{display:flex;gap:10px;align-items:center}
+.prueba h2 span{width:30px;height:30px;border-radius:50%;background:var(--acento);color:#fff;display:inline-grid;place-items:center;font-size:15px;flex:none}
+.prueba ol{padding-left:20px;margin:6px 0 10px}
+.prueba .mira{font-size:14px;color:var(--sub);margin-bottom:12px}
+.prueba.activa{border:2px solid var(--verde);background:var(--verde-bg)}
+.vivo-prueba{border:2px solid var(--verde);margin-bottom:12px}
+.vivo-prueba .cab-vivo{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.vivo-prueba .guia-vivo{padding:10px 12px;border-radius:10px;background:var(--panel2);font-weight:600;margin-bottom:10px;font-size:15px}
+.vivo-prueba .cifras{margin-bottom:0}
+.hallazgo{display:flex;gap:10px;padding:10px 12px;border-radius:10px;margin-bottom:6px;background:var(--panel2)}
+.hallazgo .ico{width:22px;height:22px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:13px;font-weight:800;color:#fff;background:var(--gris)}
+.hallazgo.verde .ico{background:var(--verde)}.hallazgo.amarillo .ico{background:var(--amarillo)}.hallazgo.rojo .ico{background:var(--rojo)}
+.hallazgo .t{font-weight:600}.hallazgo .d{font-size:14px;color:var(--sub)}
+.sesion{padding:12px 0;border-bottom:1px solid var(--linea)}
+.sesion:last-child{border-bottom:0}
+.sesion .cab{display:flex;gap:10px;flex-wrap:wrap;align-items:baseline}
+.sesion .cab b{font-size:16px}
+.sesion .cab span{color:var(--sub);font-size:14px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.sesion a{color:var(--acento);font-size:14px;margin-right:12px;text-decoration:none;font-weight:600}
+code{background:var(--panel2);padding:1px 6px;border-radius:5px;font-size:14px}
+/* ventana */
+.velo{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;z-index:20;padding:16px}
+.velo.si{display:flex}
+@media (min-width:640px){.velo{align-items:center}}
+.ventana{background:var(--panel);border-radius:16px;padding:18px;max-width:480px;width:100%;max-height:90vh;overflow:auto}
+.marcas{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.marcas button{padding:14px 8px;border-radius:10px;border:1px solid var(--linea);background:var(--panel2);color:var(--txt);font-weight:600}
+input[type=text]{font:inherit;width:100%;padding:11px 12px;border-radius:10px;border:1px solid var(--linea);background:var(--panel2);color:var(--txt)}
+label.marca{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size:15px}
+.tostada{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--txt);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;z-index:30;max-width:calc(100% - 32px)}
+.tostada.si{opacity:1}
+@media (max-width:560px){
+  header h1{font-size:19px}
+  .rejilla{grid-template-columns:1fr 1fr;gap:8px}
+  .tarjeta{padding:11px;border-left-width:4px}
+  .tarjeta .valor{font-size:26px}
+  .tarjeta .valor small{font-size:13px}
+  .tarjeta .valor.texto{font-size:16px}
+  .tarjeta .msg{font-size:13px}
+  .resumen .caja{min-width:0;padding:10px 12px}
+  .resumen .num{font-size:24px}
+  .grabando .acciones{margin-left:0;width:100%}
+  .grabando .acciones .boton{flex:1}
+}
+</style>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icono-192.png">
+  <link rel="apple-touch-icon" href="icono-192.png">
+</head>
+<body>
+<div class="envoltura">
+  <header>
+    <div>
+      <h1>Mi Sandero</h1>
+      <div class="sub">Stepway 2011 · 1.6 8V (K7M) gasolina</div>
+    </div>
+    <span class="pastilla" id="pastilla"><i></i><span>Sin conectar</span></span>
+  </header>
+
+  <div class="grabando" id="barraGrab">
+    <span class="punto"></span>
+    <span class="que" id="grabQue">Grabando</span>
+    <span class="cuanto" id="grabCuanto"></span>
+    <div class="acciones">
+      <button class="boton primario" onclick="abrir('vMarca')">⚑ Ha pasado algo</button>
+      <button class="boton" onclick="terminar()">Terminar</button>
+    </div>
+  </div>
+
+  <section class="panel" id="panelConectar">
+    <h2>Conectar con el coche</h2>
+    <ol class="pasos">
+      <li>Enchufa el lector en la toma OBD (bajo el volante, a la izquierda).</li>
+      <li>Pon el contacto o arranca el motor.</li>
+      <li>Elige el lector en la lista y pulsa <b>Conectar</b>.</li>
+    </ol>
+    <div class="fila">
+      <select id="destino"></select>
+      <button class="boton" onclick="cargarPuertos()" title="Volver a buscar">↻</button>
+      <button class="boton primario grande" id="btnConectar" onclick="conectar()">Conectar</button>
+    </div>
+    <div class="mensaje-con" id="msgCon"></div>
+    <div class="aviso" id="ayudaPuerto" hidden>
+      No aparece ningún lector. En el Mac: <b>Ajustes del Sistema → Bluetooth</b>, busca «OBDII» (o parecido) y conéctalo
+      (si pide código: <b>1234</b> o <b>0000</b>). Luego pulsa ↻. Si no sale ahí, tu lector es Bluetooth LE: elige
+      «Bluetooth LE (buscar)».
+    </div>
+  </section>
+
+  <section class="panel" id="panelConectado" hidden>
+    <div class="fila">
+      <div style="flex:1;min-width:200px">
+        <b id="conProto">Conectado</b>
+        <div class="mensaje-con" id="conInfo" style="margin-top:2px"></div>
+      </div>
+      <button class="boton" onclick="pantallaCompleta()" title="Modo cuadro a pantalla completa">⛶ Cuadro</button>
+      <button class="boton" onclick="desconectar()">Desconectar</button>
+    </div>
+  </section>
+
+  <nav id="pestanas">
+    <button data-p="directo" class="activo">En directo</button>
+    <button data-p="averias">Averías <span class="cuenta" id="cuentaAv" hidden>0</span></button>
+    <button data-p="pruebas">Pruebas</button>
+    <button data-p="historial">Grabaciones</button>
+    <button data-p="mantenimiento">Mantenimiento</button>
+    <button data-p="claude">💬 Claude <span class="cuenta" id="cuentaClaude" hidden>nuevo</span></button>
+  </nav>
+
+  <!-- EN DIRECTO -->
+  <section class="pestana activa" id="p-directo">
+    <div class="cuadro-vivo" id="cuadroVivo" hidden></div>
+    <div class="panel diag" id="diag">
+      <div class="cabd"><h2>Diagnóstico en directo</h2><span id="diagInfo">Se actualiza solo mientras el coche esté conectado</span></div>
+      <div id="diagCuerpo" class="vacio">Esperando datos…</div>
+    </div>
+    <div id="grupos"></div>
+    <p class="vacio" id="sinDatos">Conecta con el coche para ver los datos.</p>
+  </section>
+
+  <!-- AVERÍAS -->
+  <section class="pestana" id="p-averias">
+    <div class="panel">
+      <div class="fila" style="justify-content:space-between">
+        <div><h2 style="margin:0">Averías y autodiagnósticos</h2><div class="mensaje-con" id="avHora" style="margin-top:2px"></div></div>
+        <button class="boton primario" onclick="leerAverias()">Volver a leer</button>
+      </div>
+      <div id="avTestigo"></div>
+      <h3>Guardadas <span style="text-transform:none;font-weight:400">· las que encienden el testigo</span></h3>
+      <div id="avGuardadas" class="vacio">–</div>
+      <h3>Pendientes <span style="text-transform:none;font-weight:400">· el coche sospecha, aún no lo confirma</span></h3>
+      <div id="avPendientes" class="vacio">–</div>
+      <div id="bloquePerm" hidden><h3>Permanentes</h3><div id="avPermanentes"></div></div>
+      <h3>Autodiagnósticos del coche <span style="text-transform:none;font-weight:400">· importan para la ITV</span></h3>
+      <div id="avMonitores" class="vacio">–</div>
+      <div id="bloqueContadores" hidden><h3>Desde el último borrado</h3><table id="avContadores"></table></div>
+      <div id="bloqueFoto" hidden><h3>Foto del momento de la avería</h3><table id="avFoto"></table></div>
+      <div class="peligro">
+        <b>Borrar averías</b>
+        <div class="mensaje-con" style="margin:4px 0 10px">Borrar no arregla nada: si la causa sigue, la avería vuelve.
+          Además el coche olvida sus autodiagnósticos y la ITV puede no pasar hasta que los repita.</div>
+        <button class="boton" onclick="abrir('vBorrar')">Borrar averías…</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRUEBAS -->
+  <section class="pestana" id="p-pruebas">
+    <div class="panel vivo-prueba" id="panelVivoPrueba" hidden>
+      <div class="cab-vivo">
+        <span class="punto"></span>
+        <b id="vpTitulo" style="font-size:17px">Grabando en directo</b>
+        <span class="estado verde" id="vpEstado">Recibiendo datos ✓</span>
+        <span class="mensaje-con" id="vpMeta" style="margin:0;margin-left:auto"></span>
+      </div>
+      <div class="guia-vivo" id="vpGuia"></div>
+      <div class="cifras" id="vpCifras"></div>
+    </div>
+    <div class="panel" id="ultimoResumen" hidden></div>
+    <p class="mensaje-con">Al conectar ya se graba todo solo («Grabación libre»). Estas pruebas guiadas dan datos
+      mucho más fáciles de interpretar. Que maneje el ordenador el copiloto o hazlas parado.</p>
+    <div class="pruebas">
+      <div class="panel prueba" id="card-arranque_frio">
+        <h2><span>1</span>Arranque en frío</h2>
+        <ol>
+          <li>El coche tiene que llevar horas parado (mejor por la mañana).</li>
+          <li>Pon el contacto, conecta y pulsa <b>Empezar</b>.</li>
+          <li>Arranca y déjalo al ralentí sin tocar nada hasta que salte el ventilador (10-20 min).</li>
+        </ol>
+        <div class="mira">Revisa: termostato, sensor de temperatura, ralentí en frío y cuándo empiezan a trabajar las sondas.</div>
+        <button class="boton primario" id="btn-arranque_frio" onclick="empezar('arranque_frio')">Empezar</button>
+      </div>
+      <div class="panel prueba" id="card-ralenti_caliente">
+        <h2><span>2</span>Ralentí en caliente y acelerones</h2>
+        <ol>
+          <li>Con el motor ya caliente y el coche parado, pulsa <b>Empezar</b>.</li>
+          <li>2 minutos al ralentí sin tocar nada.</li>
+          <li>Mantén 2.500 rpm durante 30 segundos y suelta. Repite 2 veces más.</li>
+          <li>Otro minuto al ralentí y pulsa <b>Terminar</b>.</li>
+        </ol>
+        <div class="mira">Revisa: tomas de aire, estabilidad del ralentí, sondas lambda y catalizador.</div>
+        <button class="boton primario" id="btn-ralenti_caliente" onclick="empezar('ralenti_caliente')">Empezar</button>
+      </div>
+      <div class="panel prueba" id="card-trayecto">
+        <h2><span>3</span>Trayecto normal</h2>
+        <ol>
+          <li>Pulsa <b>Empezar</b> y conduce 15-30 min mezclando ciudad y carretera.</li>
+          <li>Si notas algo raro (tirón, pérdida de fuerza, ruido), que el copiloto pulse <b>⚑ Ha pasado algo</b>.</li>
+          <li>Al llegar, pulsa <b>Terminar</b>.</li>
+        </ol>
+        <div class="mira">Revisa: mezcla con carga, alternador, encendido y lo que pase en las marcas.</div>
+        <button class="boton primario" id="btn-trayecto" onclick="empezar('trayecto')">Empezar</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- HISTORIAL -->
+  <section class="pestana" id="p-historial">
+    <div class="panel" id="panelAcumulado" hidden></div>
+    <div class="panel">
+      <div class="fila" style="justify-content:space-between">
+        <h2 style="margin:0">Grabaciones</h2>
+        <div class="fila" style="gap:6px">
+          <input type="file" id="inpImportar" multiple accept=".zip,.csv,.json,.txt" hidden onchange="importarArchivos(this.files)">
+          <button class="boton chico" onclick="$('inpImportar').click()">⬆ Importar</button>
+          <button class="boton chico" onclick="reanalizarTodas()" title="Volver a pasar el diagnóstico con los ajustes actuales">↻ Recalcular</button>
+        </div>
+      </div>
+      <p class="mensaje-con" id="textoGrabaciones" style="margin-top:6px">Para que Claude las revise, en el Mac dile: <b>«revisa la última grabación del coche»</b>.
+        Están en <code>~/coche-obd/registros</code>.</p>
+      <div class="barra-ses">
+        <div class="pildoras" id="filtroSes">
+          <button data-f="todas" class="activo" onclick="filtrarSesiones('todas')">Todas</button>
+          <button data-f="reales" onclick="filtrarSesiones('reales')">Solo coche real</button>
+          <button data-f="avisos" onclick="filtrarSesiones('avisos')">Con avisos</button>
+        </div>
+        <span class="mensaje-con" id="cuentaSes" style="margin:0"></span>
+      </div>
+      <div id="sesiones" class="vacio">Cargando…</div>
+    </div>
+  </section>
+
+  <!-- CLAUDE -->
+  <section class="pestana" id="p-claude">
+    <div class="panel" id="panelNube" hidden></div>
+    <div class="panel">
+      <div class="fila" style="justify-content:space-between"><h2 style="margin:0">Mensajes de Claude</h2>
+        <button class="boton chico" onclick="cargarClaude(true)">↻ Actualizar</button></div>
+      <p class="mensaje-con" id="infoClaude" style="margin-top:4px"></p>
+      <div id="mensajesClaude" class="md vacio">Cargando…</div>
+      <div class="fila" style="margin-top:12px"><button class="boton chico" id="btnHistorial" onclick="verHistorial()">Ver el historial completo de las charlas</button></div>
+      <div id="historialClaude" class="md" hidden style="margin-top:12px"></div>
+    </div>
+    <div class="panel">
+      <h2 style="margin:0 0 6px">Escribir a Claude</h2>
+      <textarea class="caja" id="txtBuzon" placeholder="Ej.: «He cambiado el termostato», «hoy huele a gasolina», «revisa la grabación de esta mañana»…"></textarea>
+      <div class="fila" style="margin-top:8px"><button class="boton primario" onclick="mandarBuzon()">Enviar</button>
+        <span class="mensaje-con" id="textoBuzon" style="margin:0">Se guarda en el buzón (<code>BUZON.md</code>). Claude lo lee cuando le digas «lee el buzón del coche».</span></div>
+      <div id="buzonLista" class="md" style="margin-top:10px"></div>
+    </div>
+  </section>
+
+  <!-- MANTENIMIENTO -->
+  <section class="pestana" id="p-mantenimiento">
+    <div class="panel">
+      <div class="fila" style="justify-content:space-between">
+        <h2 style="margin:0">Pendiente antes de la ITV (Diciembre)</h2>
+        <span class="estado gris" id="mantResumen"></span>
+      </div>
+      <div class="barra-prog"><div id="mantBarra" style="width:0%"></div></div>
+      <p class="mensaje-con" id="textoMantenimiento" style="margin-top:0">Marca cada tarea al hacerla o pulsa en la etiqueta para alternar <b>Pendiente ↔ Comprado ✅</b>. Se guarda en <code>~/coche-obd/mantenimiento.json</code>.</p>
+      <div id="mantPendientes" class="vacio">Cargando…</div>
+      <div class="fila" style="margin-top:10px">
+        <input type="text" id="nuevaTareaTxt" placeholder="Añadir tarea pendiente (p. ej. Revisar presión ruedas)" style="flex:1">
+        <label style="font-size:14px;display:flex;align-items:center;gap:5px;color:var(--sub)"><input type="checkbox" id="nuevaTareaComp"> Comprado</label>
+        <button class="boton primario chico" onclick="anadirTarea()">+ Añadir</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="fila" style="justify-content:space-between">
+        <h2 style="margin:0">Historial del coche</h2>
+        <button class="boton chico" onclick="$('formHist').hidden=!$('formHist').hidden">+ Apuntar intervención</button>
+      </div>
+      <div id="formHist" hidden style="margin:10px 0;padding:12px;border-radius:12px;background:var(--panel2)">
+        <div class="fila" style="margin-bottom:8px">
+          <input type="text" id="histFecha" placeholder="Fecha (p. ej. 2026-11-07)" style="flex:1;min-width:140px">
+          <input type="text" inputmode="numeric" id="histKm" placeholder="Kilómetros (p. ej. 210500)" style="flex:1;min-width:140px">
+        </div>
+        <input type="text" id="histItems" placeholder="Trabajos hechos (separados por coma: Cambio aceite, Filtro aceite…)">
+        <div class="fila" style="justify-content:flex-end;margin-top:8px">
+          <button class="boton chico" onclick="$('formHist').hidden=true">Cancelar</button>
+          <button class="boton primario chico" onclick="anadirHistorial()">Guardar en historial</button>
+        </div>
+      </div>
+      <div id="mantHistorial" class="vacio">Cargando…</div>
+    </div>
+  </section>
+</div>
+
+<!-- ventanas -->
+<div class="velo" id="vMarca" onclick="if(event.target===this)cerrar('vMarca')">
+  <div class="ventana">
+    <h2>¿Qué ha pasado?</h2>
+    <div class="mensaje-con" style="margin-top:0">Se guarda la hora exacta en la grabación.</div>
+    <div class="marcas">
+      <button onclick="marcar('Tirón')">Tirón</button>
+      <button onclick="marcar('Pierde fuerza')">Pierde fuerza</button>
+      <button onclick="marcar('Se ha calado / casi se cala')">Se cala</button>
+      <button onclick="marcar('Ralentí raro')">Ralentí raro</button>
+      <button onclick="marcar('Ruido raro')">Ruido raro</button>
+      <button onclick="marcar('Se ha encendido el testigo')">Testigo</button>
+      <button onclick="marcar('Olor raro')">Olor raro</button>
+      <button onclick="marcar('Marca')">Otra cosa</button>
+    </div>
+    <div class="fila"><input type="text" id="textoMarca" placeholder="O escríbelo (opcional)">
+      <button class="boton primario" onclick="marcar(document.getElementById('textoMarca').value||'Nota')">Guardar</button></div>
+    <div style="text-align:right;margin-top:12px"><button class="boton" onclick="cerrar('vMarca')">Cancelar</button></div>
+  </div>
+</div>
+
+<div class="velo" id="vBorrar" onclick="if(event.target===this)cerrar('vBorrar')">
+  <div class="ventana">
+    <h2>¿Borrar las averías?</h2>
+    <p>Hazlo con el <b>motor apagado</b> y el contacto puesto. Antes se guardan las averías actuales en la grabación
+      para no perderlas.</p>
+    <label class="marca"><input type="checkbox" id="chkBorrar" onchange="document.getElementById('btnBorrar').disabled=!this.checked">
+      Entiendo que esto no arregla la avería y que el coche tendrá que repetir sus autodiagnósticos.</label>
+    <div class="fila" style="justify-content:flex-end">
+      <button class="boton" onclick="cerrar('vBorrar')">Cancelar</button>
+      <button class="boton peligro" id="btnBorrar" disabled onclick="borrar()">Borrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="tostada" id="tostada"></div>
+
+<script src="motor.js"></script>
+<script>if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});</script>
+<script>
+let SISTEMAS = [], NOMBRES_SIS = {};
+const SIN_GRAFICA = new Set(["consumo_l100","sistema_combustible","tiempo_motor","km_desde_borrado","calentamientos_borrado","km_con_testigo","min_desde_borrado","min_con_testigo","presion_atm"]);
+let DEF = {}, ultimo = null, historia = {}, tarjetasHechas = false, sesionesVistas = "";
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function tostada(t){ const e=$("tostada"); e.textContent=t; e.classList.add("si"); clearTimeout(e._t); e._t=setTimeout(()=>e.classList.remove("si"),3200); }
+function abrir(id){ $(id).classList.add("si"); }
+function cerrar(id){ $(id).classList.remove("si"); }
+
+async function api(ruta, cuerpo){
+  if (window.MOTOR) return MOTOR.api(ruta, cuerpo);  // app del móvil: todo corre en el propio navegador (movil/motor.js)
+  const r = await fetch(ruta, cuerpo===undefined ? {} : {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(cuerpo)});
+  return r.json();
+}
+
+document.querySelectorAll("#pestanas button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("#pestanas button").forEach(x => x.classList.toggle("activo", x===b));
+  document.querySelectorAll(".pestana").forEach(p => p.classList.toggle("activa", p.id==="p-"+b.dataset.p));
+  if (b.dataset.p==="directo") requestAnimationFrame(redibujarTodo);
+  if (b.dataset.p==="historial") cargarSesiones();
+  if (b.dataset.p==="mantenimiento") cargarMantenimiento();
+  if (b.dataset.p==="claude") cargarClaude();
+});
+
+// ------------------------------------------------------------------ pestaña «Claude»: mensajes, historial y buzón
+function mdLinea(t){
+  return esc(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/(^|[\s(])\*([^*\s][^*]*?)\*(?=[\s).,;:]|$)/g, "$1<i>$2</i>")
+    .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+}
+function md(texto){  // Markdown sencillo: títulos, listas, tablas, negritas y código
+  const out = [], lineas = String(texto || "").replace(/\r/g, "").split("\n");
+  let lista = null, parrafo = [];
+  const cerrarP = () => { if (parrafo.length) { out.push(`<p>${parrafo.map(mdLinea).join("<br>")}</p>`); parrafo = []; } };
+  const cerrarL = () => { if (lista) { out.push(`</${lista}>`); lista = null; } };
+  for (let i = 0; i < lineas.length; i++) {
+    const l = lineas[i], m = l.match(/^(#{1,4})\s+(.*)/), li = l.match(/^\s*(?:[-*]|(\d+)\.)\s+(.*)/);
+    if (m) { cerrarP(); cerrarL(); const n = Math.min(3, Math.max(2, m[1].length)); out.push(`<h${n}>${mdLinea(m[2])}</h${n}>`); }
+    else if (/^\s*\|/.test(l)) {
+      cerrarP(); cerrarL();
+      const filas = [];
+      while (i < lineas.length && /^\s*\|/.test(lineas[i])) filas.push(lineas[i++]);
+      i--;
+      out.push("<table>" + filas.filter(f => !/^\s*\|[\s:|-]+\|\s*$/.test(f)).map((f, k) =>
+        "<tr>" + f.trim().replace(/^\||\|$/g, "").split("|").map(c => k ? `<td>${mdLinea(c.trim())}</td>` : `<th>${mdLinea(c.trim())}</th>`).join("") + "</tr>").join("") + "</table>");
+    }
+    else if (li) { cerrarP(); const tipo = li[1] ? "ol" : "ul"; if (lista !== tipo) { cerrarL(); out.push(`<${tipo}>`); lista = tipo; } out.push(`<li>${mdLinea(li[2])}</li>`); }
+    else if (lista && /^\s{2,}\S/.test(l)) { out[out.length - 1] = out[out.length - 1].replace(/<\/li>$/, " " + mdLinea(l.trim()) + "</li>"); }
+    else if (!l.trim()) { cerrarP(); cerrarL(); }
+    else { cerrarL(); parrafo.push(l); }
+  }
+  cerrarP(); cerrarL();
+  return out.join("");
+}
+function huella(t){ let h = 0; for (const c of String(t || "")) h = (h * 31 + c.codePointAt(0)) | 0; return String(h); }
+const guardado = { leer: k => { try { return localStorage.getItem(k); } catch { return null; } },
+                   poner: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
+let claudeCache = null;
+async function cargarClaude(forzar){
+  const visible = $("p-claude").classList.contains("activa");
+  const r = await api("/api/claude" + (forzar ? "?forzar=1" : "")).catch(e => ({error: String(e)}));
+  claudeCache = r;
+  pintarNube(r.nube);
+  if (r.error && !r.mensajes) { if (visible) $("mensajesClaude").innerHTML = `<span class="nube-mal">${esc(r.error)}</span>`; return; }
+  const h = huella(r.mensajes);
+  if (visible) {
+    $("mensajesClaude").classList.remove("vacio");
+    $("mensajesClaude").innerHTML = r.mensajes ? md(r.mensajes) : "Todavía no hay mensajes.";
+    $("buzonLista").innerHTML = r.buzon ? "<h3>Lo último que le has escrito</h3>" + md(r.buzon.split(/\n(?=## )/).filter(x => x.trim().startsWith("## ")).slice(-3).reverse().map(x => x.trim().replace(/^## (.*)/, "**$1**")).join("\n\n")) : "";
+    $("infoClaude").textContent = r.origen || "";
+    if (!$("historialClaude").hidden) $("historialClaude").innerHTML = md(r.historial || "");
+    guardado.poner("claudeVisto", h);
+  }
+  $("cuentaClaude").hidden = visible || !r.mensajes || guardado.leer("claudeVisto") === h;
+}
+function verHistorial(){
+  const e = $("historialClaude");
+  e.hidden = !e.hidden;
+  $("btnHistorial").textContent = e.hidden ? "Ver el historial completo de las charlas" : "Ocultar el historial";
+  if (!e.hidden) e.innerHTML = claudeCache?.historial ? md(claudeCache.historial) : "<span class='vacio'>No hay historial.</span>";
+}
+async function mandarBuzon(){
+  const t = $("txtBuzon").value.trim();
+  if (!t) return tostada("Escribe algo primero");
+  tostada("Enviando…");
+  const r = await api("/api/buzon", {texto: t});
+  if (!r.ok) return tostada(r.error || "No se pudo enviar");
+  $("txtBuzon").value = "";
+  tostada(r.dato || "Enviado a Claude");
+  cargarClaude();
+}
+function pintarNube(n){  // solo en la app del móvil: subida de grabaciones a GitHub
+  const el = $("panelNube");
+  if (!n) { el.hidden = true; return; }
+  el.hidden = false;
+  if (!n.token) {
+    el.innerHTML = `<h2 style="margin:0 0 6px">☁ Subir las grabaciones a GitHub</h2>
+      <p class="mensaje-con" style="margin-top:0">Para que las grabaciones lleguen solas al Mac y Claude las vea, y para leer aquí sus mensajes, la app necesita una llave de GitHub (solo hay que ponerla una vez):</p>
+      <ol class="mensaje-con">
+        <li>Abre <a href="${esc(n.enlace_llave)}" target="_blank" rel="noopener"><b>este enlace</b></a> (entra en GitHub si te lo pide).</li>
+        <li>En <b>Repository access</b> elige <b>Only select repositories → ${esc(n.repo.split("/")[1])}</b>.</li>
+        <li>En <b>Permissions → Contents</b> elige <b>Read and write</b>.</li>
+        <li>Pulsa <b>Generate token</b>, cópialo (empieza por <code>github_pat_</code>) y pégalo aquí:</li>
+      </ol>
+      <input type="text" id="inpLlave" placeholder="github_pat_…" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <div class="fila" style="margin-top:8px"><button class="boton primario" onclick="guardarLlave()">Guardar llave</button></div>`;
+    return;
+  }
+  el.innerHTML = `<div class="fila" style="justify-content:space-between">
+      <div><b>☁ Grabaciones en GitHub</b><div class="mensaje-con" style="margin-top:2px">
+        ${n.pendientes ? `<span class="nube-mal">${n.pendientes} sin subir</span>` : `<span class="nube-ok">Todo subido ✓</span>`}
+        · ${n.subidas} subidas${n.ultima ? " · última " + esc(n.ultima) : ""}${n.error ? `<br><span class="nube-mal">${esc(n.error)}</span>` : ""}</div></div>
+      <div class="fila" style="gap:6px"><button class="boton chico" onclick="subirAhora()">⬆ Subir ahora</button>
+        <button class="boton chico" onclick="quitarLlave()">Quitar llave</button></div></div>`;
+}
+async function guardarLlave(){
+  const t = $("inpLlave").value.trim();
+  if (!t) return tostada("Pega la llave primero");
+  tostada("Comprobando la llave…");
+  const r = await api("/api/nube", {token: t});
+  tostada(r.ok ? "Llave guardada. Subiendo las grabaciones…" : r.error);
+  if (r.ok) { cargarClaude(true); subirAhora(); }
+}
+async function quitarLlave(){
+  if (!confirm("¿Quitar la llave de GitHub de este móvil? Las grabaciones dejarán de subirse solas.")) return;
+  await api("/api/nube", {token: ""}); cargarClaude();
+}
+async function subirAhora(){
+  tostada("Subiendo grabaciones…");
+  const r = await api("/api/subir", {});
+  tostada(r.ok ? (r.dato ? `Subidas ${r.dato} grabaciones a GitHub` : "No había nada nuevo que subir") : r.error);
+  cargarClaude();
+}
+setTimeout(() => cargarClaude().catch(() => {}), 3000);
+setInterval(() => cargarClaude().catch(() => {}), 5 * 60 * 1000);
+
+function redibujarTodo(){
+  if (!ultimo) return;
+  for (const [k, x] of Object.entries(ultimo.valores || {})) dibujar(k, x.estado);
+}
+function pantallaCompleta(){
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(()=>{});
+  else document.exitFullscreen?.().catch(()=>{});
+}
+
+async function cargarPuertos(){
+  const {puertos} = await api("/api/puertos");
+  const sel = $("destino"), antes = sel.value;
+  if (window.MOTOR) sel.innerHTML = MOTOR.opcionesLector.map(([v, t]) => `<option value="${v}">${esc(t)}</option>`).join("");
+  else sel.innerHTML = puertos.map(p => `<option value="${esc(p)}">${esc(p.replace("/dev/cu.","").replace("/dev/",""))}</option>`).join("")
+    + `<option value="ble">Bluetooth LE (el que funciona en este Mac)</option><option value="demo">Coche de prueba (demostración)</option>`;
+  const ultimo = (await api("/api/ajustes")).ultimo_lector;
+  if ([...sel.options].some(o => o.value===antes)) sel.value = antes;
+  else if (ultimo && [...sel.options].some(o => o.value===ultimo)) sel.value = ultimo;
+  $("ayudaPuerto").hidden = true;
+}
+
+async function conectar(){
+  $("btnConectar").disabled = true;
+  $("msgCon").textContent = "Conectando… (el coche puede tardar hasta 15 segundos en contestar)";
+  const r = await api("/api/conectar", {destino: $("destino").value});
+  $("btnConectar").disabled = false;
+  if (!r.ok) { $("msgCon").innerHTML = `<div class="aviso rojo">${esc(r.error)}</div>`; return; }
+  $("msgCon").textContent = "";
+  tostada("Conectado. Grabando todo automáticamente.");
+}
+async function desconectar(){ await api("/api/desconectar", {}); tostada("Desconectado. Grabación guardada."); cargarSesiones(); }
+async function leerAverias(){ tostada("Leyendo averías…"); const r = await api("/api/averias", {}); tostada(r.ok ? "Averías leídas" : r.error); }
+async function empezar(tipo){
+  const r = await api("/api/empezar", {prueba: tipo});
+  if (!r.ok) return tostada(r.error);
+  tostada("Prueba empezada. Sigue los pasos."); window.scrollTo({top:0, behavior:"smooth"});
+}
+async function terminar(){
+  const r = await api("/api/parar", {});
+  if (!r.ok) return tostada(r.error);
+  tostada("Grabación terminada y revisada");
+  document.querySelector('[data-p="pruebas"]').click();
+  // tras terminar sigue grabando en libre si hay conexión
+  if (ultimo && ultimo.conexion.estado==="conectado") api("/api/empezar", {prueba:"libre"});
+}
+async function marcar(texto){
+  const r = await api("/api/nota", {texto});
+  cerrar("vMarca"); $("textoMarca").value = "";
+  tostada(r.ok ? `Marcado: ${texto}` : r.error);
+}
+async function borrar(){
+  cerrar("vBorrar"); $("chkBorrar").checked = false; $("btnBorrar").disabled = true;
+  tostada("Borrando…");
+  const r = await api("/api/borrar", {confirmo:true});
+  tostada(r.ok ? "Averías borradas" : r.error);
+}
+
+function fmt(clave, v){
+  const d = DEF[clave] || {};
+  if (typeof v !== "number") return esc(v);
+  if (clave==="tiempo_motor") { const m=Math.floor(v/60), s=Math.round(v%60); return `${m}:${String(s).padStart(2,"0")}`; }
+  return v.toLocaleString("es-ES", {minimumFractionDigits:d.decimales||0, maximumFractionDigits:d.decimales||0});
+}
+
+function hacerTarjetas(){
+  const cont = $("grupos"); cont.innerHTML = "";
+  const usados = new Set(SISTEMAS.flatMap(s => s.sensores));
+  const grupos = [...SISTEMAS, {id:"otros", nombre:"Otros", descripcion:"", sensores:Object.keys(DEF).filter(k => !usados.has(k))}];
+  for (const sis of grupos) {
+    const html = sis.sensores.filter(k => DEF[k]).map(k => `
+      <div class="tarjeta" id="t-${k}" hidden>
+        <div class="nombre">${esc(DEF[k].nombre)}</div>
+        <div class="valor" id="v-${k}">–</div>
+        <span class="estado" id="e-${k}"></span>
+        <div class="msg" id="m-${k}"></div>
+        ${SIN_GRAFICA.has(k) ? "" : `<canvas id="c-${k}"></canvas>`}
+        <details><summary>¿Qué es esto?</summary>
+          <p>${esc(DEF[k].explicacion)}</p>${DEF[k].normal ? `<p><b>Normal:</b> ${esc(DEF[k].normal)}</p>` : ""}
+        </details>
+      </div>`).join("");
+    const extra = sis.id==="consumo" ? `<div class="cifras" id="cifrasConsumo"></div>
+      <div class="repostaje">Según tus repostajes gastas
+        <input type="text" inputmode="decimal" id="consumoReal" placeholder="p. ej. 9,5"> L/100 km
+        <button class="boton" onclick="guardarConsumo()">Guardar</button>
+        <span>(sirve para comparar con lo que ve el coche)</span></div>
+      <details style="margin-bottom:10px"><summary>Ajustes de calibración (factor de consumo y voltímetro)</summary>
+        <div class="repostaje" style="margin-top:8px">
+          Factor de cálculo de gasolina: <input type="text" inputmode="decimal" id="factorConsumo" placeholder="1,0">
+          · Corrección batería: <input type="text" inputmode="decimal" id="corrBateria" placeholder="0,0"> V
+          · Corrección velocidad: × <input type="text" inputmode="decimal" id="corrVelocidad" placeholder="1,0">
+          (<a href="/gps" target="_blank">calibrar con el GPS del móvil</a>)
+          <button class="boton chico" onclick="guardarCalibracion()">Guardar calibración</button>
+        </div>
+      </details>` : "";
+    cont.insertAdjacentHTML("beforeend", `<section class="grupo sistema" id="s-${sis.id}" ${sis.id==="consumo"?"":"hidden"}>
+      <div class="cabs"><h3>${esc(sis.nombre)}</h3><span class="estado" id="es-${sis.id}"></span></div>
+      ${sis.descripcion ? `<div class="descs">${esc(sis.descripcion)}</div>` : ""}
+      ${extra}<div class="hall-sis" id="hs-${sis.id}"></div>
+      <div class="rejilla">${html}</div></section>`);
+  }
+  tarjetasHechas = true;
+}
+
+const ETQ = {verde:"Bien", amarillo:"Ojo", rojo:"Revisar", gris:"Info"};
+function dibujar(clave, estado){
+  const c = $("c-"+clave); if (!c) return;
+  const h = historia[clave] || []; const dpr = window.devicePixelRatio || 1;
+  const w = c.clientWidth, alto = c.clientHeight; if (!w) return;
+  c.width = w*dpr; c.height = alto*dpr;
+  const g = c.getContext("2d"); g.scale(dpr,dpr);
+  if (h.length < 2) return;
+  let min = Math.min(...h), max = Math.max(...h);
+  if (clave.startsWith("sonda")) { min = 0; max = 1; }
+  if (max - min < 1e-6) { max += 1; min -= 1; }
+  const col = getComputedStyle(document.documentElement).getPropertyValue("--"+(estado==="gris"?"acento":estado)).trim();
+  g.strokeStyle = col; g.lineWidth = 2; g.lineJoin = "round"; g.beginPath();
+  h.forEach((v,i) => { const x = i/(h.length-1)*w, y = alto-3-(v-min)/(max-min)*(alto-6); i ? g.lineTo(x,y) : g.moveTo(x,y); });
+  g.stroke();
+}
+
+// Velocidad del GPS del iPhone (página /gps o esta misma abierta en el móvil por https) al lado de la de la centralita
+let gpsWatchId = null, ultimoEnvioGps = 0;
+function iniciarGpsMovil(){
+  if (gpsWatchId != null || !window.isSecureContext || !navigator.geolocation) return;
+  if (!window.MOTOR && !/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) return;
+  try {
+    gpsWatchId = navigator.geolocation.watchPosition(p => {
+      const c = p.coords;
+      if (c.speed == null || c.speed < 0 || c.accuracy > 30) return;
+      if (Date.now() - ultimoEnvioGps > 400) {
+        ultimoEnvioGps = Date.now();
+        api("/api/gps", {v: c.speed * 3.6, precision: c.accuracy}).catch(() => {});
+      }
+    }, () => {}, {enableHighAccuracy: true, maximumAge: 0, timeout: 15000});
+  } catch (e) {}
+}
+document.addEventListener("click", iniciarGpsMovil, {once: true});
+iniciarGpsMovil();
+
+function lineaGps(f){
+  const g = f.valores?.gps_velocidad?.v, c = f.valores?.velocidad?.v;
+  if (g == null) return "";
+  let dif = "";
+  if (c != null && c >= 20 && g >= 20) {
+    const d = (c / g - 1) * 100;
+    dif = ` · ${d > 0 ? "+" : ""}${d.toFixed(1).replace(".", ",")} %`;
+  }
+  return `<i class="gps">📍 GPS ${Math.round(g)} km/h${dif}</i>`;
+}
+
+function pintarCuadroVivo(f){
+  const el = $("cuadroVivo");
+  if (!el) return;
+  const hay = Object.keys(f.valores || {}).length > 0;
+  el.hidden = !hay;
+  if (!hay) return;
+  const v = k => f.valores[k]?.v, est = k => f.valores[k]?.estado || "gris";
+  const rpm = v("rpm"), vel = v("velocidad"), temp = v("temp_motor"), bat = v("bateria");
+  const st = v("stft"), lt = v("ltft");
+  const corr = (st != null && lt != null) ? Math.round((st + lt) * 10) / 10 : lt;
+  const corrEst = corr == null ? "gris" : Math.abs(corr) > 20 ? "rojo" : Math.abs(corr) > 10 ? "amarillo" : "verde";
+  const gasto = (vel || 0) >= 5 && v("consumo_l100") != null
+    ? [fmt("consumo_l100", v("consumo_l100")) + " L/100", "Gasto ahora"]
+    : [v("consumo_lh") != null ? fmt("consumo_lh", v("consumo_lh")) + " L/h" : "–", "Gasto por hora"];
+  const items = [
+    [rpm != null ? (rpm <= 300 ? "Parado" : fmt("rpm", rpm) + " rpm") : "–", "Revoluciones", est("rpm")],
+    [vel != null ? fmt("velocidad", vel) + " km/h" : "–", "Velocidad", est("velocidad")],
+    [temp != null ? fmt("temp_motor", temp) + " °C" : "–", "Temp. motor", est("temp_motor")],
+    [corr != null ? (corr > 0 ? "+" : "") + String(corr).replace(".",",") + " %" : "–", "Mezcla (LTFT+STFT)", corrEst],
+    [bat != null ? fmt("bateria", bat) + " V" : "–", "Batería", est("bateria")],
+    [gasto[0], gasto[1], est("consumo_lh")],
+  ];
+  el.innerHTML = items.map(([val, etq, cl]) => `<div class="cv ${cl}"><b>${val}</b>${etq === "Velocidad" ? lineaGps(f) : ""}<span>${etq}</span></div>`).join("");
+}
+
+function pintar(f){
+  ultimo = f;
+  const c = f.conexion, p = $("pastilla");
+  p.className = "pastilla " + c.estado;
+  p.querySelector("span").textContent = {conectado:"Conectado", conectando:"Conectando…", error:"Error", desconectado:"Sin conectar"}[c.estado];
+  $("panelConectar").hidden = c.estado==="conectado";
+  $("panelConectado").hidden = c.estado!=="conectado";
+  if (c.estado==="conectando") $("msgCon").textContent = c.mensaje;
+  if (c.estado==="conectado") {
+    $("conProto").textContent = "Conectado con el coche";
+    $("conInfo").textContent = `${c.destino} · ${c.version} · ${c.protocolo} · ${f.tasa} lecturas/s`;
+  }
+  // grabación
+  const g = f.grabacion;
+  $("barraGrab").classList.toggle("si", !!g.activa);
+  if (g.activa) {
+    $("grabQue").textContent = "Grabando · " + g.nombre;
+    const m = Math.floor(g.segundos/60), s = g.segundos%60;
+    $("grabCuanto").textContent = `${m}:${String(s).padStart(2,"0")} · ${g.filas} filas` + (g.notas ? ` · ${g.notas} marca${g.notas>1?"s":""}` : "");
+  }
+  pintarVivoPrueba(f);
+  pintarCuadroVivo(f);
+  // valores
+  if (!tarjetasHechas && Object.keys(DEF).length) hacerTarjetas();
+  const hay = Object.keys(f.valores).length > 0;
+  $("sinDatos").hidden = hay;
+  for (const [k, x] of Object.entries(f.valores)) {
+    const t = $("t-"+k); if (!t) continue;
+    t.hidden = false; t.closest(".grupo").hidden = false;
+    t.className = "tarjeta " + x.estado;
+    const vEl = $("v-"+k);
+    if (x.texto) { vEl.className = "valor texto"; vEl.textContent = x.texto; }
+    else if (x.v == null) { vEl.className = "valor"; vEl.textContent = "–"; }
+    else vEl.innerHTML = fmt(k, x.v) + (DEF[k].unidad ? `<small>${esc(DEF[k].unidad)}</small>` : "");
+    const e = $("e-"+k); e.className = "estado "+x.estado; e.textContent = ETQ[x.estado];
+    $("m-"+k).textContent = x.mensaje || "";
+    if (typeof x.v === "number" && !SIN_GRAFICA.has(k)) {
+      const h = historia[k] || (historia[k] = []);
+      h.push(x.v); if (h.length > 120) h.shift();
+      if (document.querySelector("#p-directo.activa")) dibujar(k, x.estado);
+    }
+  }
+  pintarDiagnostico(f.diagnostico, hay);
+  pintarAverias(f.averias);
+  pintarResumen(f.resumen);
+}
+
+const ETQ_SIS = {verde:"Bien", amarillo:"Ojo", rojo:"Revisar", gris:"Sin datos aún"};
+let diagPintado = "";
+function irA(id){ const e = $("s-"+id); if (e) e.scrollIntoView({behavior:"smooth", block:"start"}); else document.querySelector('[data-p="averias"]').click(); }
+function pintarDiagnostico(d, hay){
+  const clave = JSON.stringify(d); if (clave===diagPintado) return; diagPintado = clave;
+  if (!d || (!hay && !d.hallazgos.length)) { $("diagCuerpo").innerHTML = `<div class="vacio">Conecta con el coche y aquí irá saliendo lo que encuentre al cruzar los datos.</div>`; return; }
+  const malos = d.hallazgos.filter(x => x.nivel==="rojo" || x.nivel==="amarillo");
+  const buenos = d.hallazgos.filter(x => x.nivel==="verde");
+  const pendientes = d.hallazgos.filter(x => x.nivel==="gris");
+  const peor = malos.some(x => x.nivel==="rojo") ? "rojo" : malos.length ? "amarillo" : buenos.length ? "verde" : "gris";
+  const frase = {rojo:`Hay ${malos.length} cosa${malos.length>1?"s":""} que revisar`, amarillo:`${malos.length} cosa${malos.length>1?"s":""} a vigilar`,
+                 verde:"De momento todo en orden", gris:"Recogiendo datos…"}[peor];
+  const min = d.estadisticas?.duracion_min;
+  $("diagInfo").textContent = (min != null ? `${String(min).replace(".",",")} min de datos analizados` : "Recogiendo datos") + " · se actualiza solo";
+  const fila = x => htmlHallazgos([x]).replace('<div class="t">', '<div class="t">').replace(/<\/div><div class="d">/, `<span class="etq-sis" onclick="irA('${x.sistema}')">${esc(NOMBRES_SIS[x.sistema]||"")}</span></div><div class="d">`);
+  $("diagCuerpo").innerHTML = `<div class="veredicto ${peor}">${frase}</div>`
+    + malos.map(fila).join("")
+    + (buenos.length ? `<details><summary>Lo que está bien (${buenos.length})</summary>${buenos.map(fila).join("")}</details>` : "")
+    + (pendientes.length ? `<details><summary>Lo que aún no se ha podido revisar (${pendientes.length})</summary>${pendientes.map(fila).join("")}</details>` : "");
+  // cada sistema
+  for (const sis of SISTEMAS) {
+    const est = d.sistemas?.[sis.id], e = $("es-"+sis.id);
+    if (e) { e.className = "estado " + (est||"gris"); e.textContent = ETQ_SIS[est||"gris"]; }
+    const hs = $("hs-"+sis.id); if (hs) hs.innerHTML = htmlHallazgos(d.hallazgos.filter(x => x.sistema===sis.id));
+  }
+  const c = d.consumo, cc = $("cifrasConsumo");
+  if (cc) cc.innerHTML = c ? [
+      [c.l100!=null ? String(c.l100).replace(".",",") : "–", "L/100 km de media"],
+      [String(c.litros).replace(".",","), "litros gastados"],
+      [String(c.km).replace(".",","), "km recorridos"],
+      [c.lh_ralenti!=null ? String(c.lh_ralenti).replace(".",",") : "–", "L/h al ralentí"],
+      [c.pct_litros_frio + " %", "gastado en frío"],
+      [c.pct_ralenti + " %", "tiempo parado"]].map(([v,t]) => `<div><b>${v}</b><span>${t}</span></div>`).join("") : "";
+}
+let ajustesActuales = {};
+async function guardarConsumo(){
+  const r = await api("/api/ajustes", {consumo_real: $("consumoReal").value.trim()});
+  if (r.ok) { ajustesActuales = r.dato; sesionesVistas = ""; cargarSesiones(); }
+  tostada(r.ok ? "Guardado. Lo comparo con lo que calcula el coche." : r.error);
+}
+async function guardarCalibracion(){
+  const r = await api("/api/ajustes", {
+    factor_consumo: $("factorConsumo")?.value.trim(),
+    correccion_bateria: $("corrBateria")?.value.trim(),
+    correccion_velocidad: $("corrVelocidad")?.value.trim(),
+  });
+  if (r.ok) {
+    ajustesActuales = r.dato;
+    tostada("Calibración guardada · recalculando grabaciones…");
+    await api("/api/reanalizar", {});
+    recargarSesiones();
+    tostada("Calibración guardada y grabaciones actualizadas");
+  } else tostada(r.error);
+}
+async function calibrarFactor(nuevoFactor){
+  const r = await api("/api/ajustes", {factor_consumo: nuevoFactor});
+  if (!r.ok) return tostada(r.error);
+  ajustesActuales = r.dato;
+  if ($("factorConsumo")) $("factorConsumo").value = String(r.dato.factor_consumo || 1).replace(".", ",");
+  tostada("Recalculando grabaciones con el nuevo factor…");
+  await api("/api/reanalizar", {});
+  recargarSesiones();
+  tostada(`Factor ajustado a ${String(nuevoFactor).replace(".",",")} y grabaciones actualizadas`);
+}
+
+function listaCodigos(lista){
+  if (!lista || !lista.length) return `<div class="vacio">Ninguna 👍</div>`;
+  return lista.map(a => `<div class="codigo"><div class="cod">${esc(a.codigo)}</div><div>
+    <div class="desc">${esc(a.descripcion)}</div>
+    <span class="estado ${a.gravedad===3?"rojo":a.gravedad===2?"amarillo":"gris"}">${esc(a.gravedad_texto)}</span>
+    <div class="consejo">${esc(a.consejo)}</div></div></div>`).join("");
+}
+let avPintadas = "";
+function pintarAverias(a){
+  const clave = JSON.stringify(a); if (clave===avPintadas) return; avPintadas = clave;
+  if (!a) return;
+  $("avHora").textContent = "Leídas a las " + a.hora;
+  $("avGuardadas").className = ""; $("avGuardadas").innerHTML = listaCodigos(a.guardadas);
+  $("avPendientes").className = ""; $("avPendientes").innerHTML = listaCodigos(a.pendientes);
+  $("bloquePerm").hidden = !(a.permanentes && a.permanentes.length);
+  $("avPermanentes").innerHTML = listaCodigos(a.permanentes);
+  const n = (a.guardadas||[]).length + (a.pendientes||[]).length;
+  $("cuentaAv").hidden = !n; $("cuentaAv").textContent = n;
+  const m = a.monitores;
+  const realMil = m && m.testigo && (m.num_averias > 0 || (a.guardadas && a.guardadas.length > 0));
+  $("avTestigo").innerHTML = m ? `<div class="aviso ${realMil?"rojo":""}" style="background:${realMil?"":m.testigo?"var(--amarillo-bg)":"var(--verde-bg)"}">
+     Testigo del motor: <b>${realMil?"ENCENDIDO":m.testigo?"encendido por contacto puesto (motor parado)":"apagado"}</b> · el coche dice tener ${m.num_averias} avería${m.num_averias===1?"":"s"} guardada${m.num_averias===1?"":"s"}${a.vin?` · VIN ${esc(a.vin)}`:""}</div>` : "";
+  $("avMonitores").className = "";
+  $("avMonitores").innerHTML = m ? `<div class="lista-mon">${m.monitores.map(x =>
+     `<div class="mon ${x.completo?"ok":"no"}">${esc(x.nombre)}<b>${x.completo?"✓ Hecho":"⏳ Sin terminar"}</b></div>`).join("")}</div>
+     ${m.monitores.some(x=>!x.completo)?`<div class="mensaje-con">«Sin terminar» es normal tras borrar averías o desconectar la batería: se completan conduciendo unos días (ciudad y carretera).</div>`:""}`
+     : `<div class="vacio">El coche no ha dado esta información.</div>`;
+  const cont = [["km_desde_borrado","Km desde el borrado"],["calentamientos_borrado","Calentamientos desde el borrado"],["min_desde_borrado","Minutos desde el borrado"],["km_con_testigo","Km con el testigo encendido"]]
+     .filter(([k]) => a[k] != null);
+  $("bloqueContadores").hidden = !cont.length;
+  $("avContadores").innerHTML = cont.map(([k,t]) => `<tr><td>${t}</td><td>${fmt(k,a[k])}</td></tr>`).join("");
+  $("bloqueFoto").hidden = !a.foto;
+  if (a.foto) $("avFoto").innerHTML = Object.entries(a.foto).map(([k,v]) =>
+     `<tr><td>${k==="averia"?"Avería":esc(DEF[k]?.nombre||k)}</td><td>${typeof v==="number"?fmt(k,v)+" "+esc(DEF[k]?.unidad||""):esc(v)}</td></tr>`).join("");
+}
+
+function htmlHallazgos(lista){
+  const ico = {verde:"✓", amarillo:"!", rojo:"!", gris:"–"};
+  return (lista||[]).map(x => `<div class="hallazgo ${x.nivel}"><div class="ico">${ico[x.nivel]||""}</div><div><div class="t">${esc(x.titulo)}</div><div class="d">${esc(x.detalle)}</div></div></div>`).join("");
+}
+function pintarVivoPrueba(f){
+  const g = f.grabacion || {};
+  const panel = $("panelVivoPrueba");
+  for (const t of ["arranque_frio", "ralenti_caliente", "trayecto"]) {
+    const card = $("card-" + t), btn = $("btn-" + t);
+    const esEsta = g.activa && g.prueba === t;
+    if (card) card.classList.toggle("activa", !!esEsta);
+    if (btn) {
+      btn.textContent = esEsta ? "● Grabando esta prueba…" : "Empezar";
+      btn.disabled = !!esEsta;
+    }
+  }
+  if (!g.activa || f.conexion.estado !== "conectado") {
+    panel.hidden = true;
+    return;
+  }
+  panel.hidden = false;
+  const m = Math.floor(g.segundos / 60), s = g.segundos % 60;
+  $("vpTitulo").textContent = `Grabando: ${g.nombre}`;
+  const recibiendo = f.tasa > 0;
+  $("vpEstado").className = "estado " + (recibiendo ? "verde" : "amarillo");
+  $("vpEstado").textContent = recibiendo ? `Grabando bien (${String(f.tasa).replace(".",",")} lect/s)` : "Esperando respuesta del coche…";
+  $("vpMeta").textContent = `Tiempo: ${m}:${String(s).padStart(2,"0")} · ${g.filas} lecturas guardadas`;
+
+  const v = k => f.valores[k]?.v;
+  const rpm = v("rpm"), temp = v("temp_motor"), vel = v("velocidad"), map = v("map"), bat = v("bateria");
+  const stft = v("stft"), ltft = v("ltft");
+  const corr = (stft != null && ltft != null) ? Math.round((stft + ltft) * 10) / 10 : null;
+
+  let guia = "Grabando todos los sensores en directo. El número de lecturas guardadas sube cada segundo.";
+  if (g.prueba === "ralenti_caliente") {
+    if (g.segundos < 120) guia = `Paso 1 (0:00–2:00): Déjalo al ralentí sin tocar nada (faltan ${120 - g.segundos} s).`;
+    else if (g.segundos < 150) guia = `Paso 2 (2:00–2:30): ¡Pisa y mantén ~2.500 rpm! (ahora vas a ${rpm ?? "–"} rpm, faltan ${150 - g.segundos} s).`;
+    else if (g.segundos < 180) guia = `Paso 3 (2:30–3:00): Suelta el acelerador y déjalo al ralentí (${180 - g.segundos} s).`;
+    else if (g.segundos < 210) guia = `Paso 4 (3:00–3:30): ¡Segundo acelerón! Mantén ~2.500 rpm (ahora ${rpm ?? "–"} rpm, faltan ${210 - g.segundos} s).`;
+    else if (g.segundos < 240) guia = `Paso 5 (3:30–4:00): Suelta al ralentí (${240 - g.segundos} s).`;
+    else if (g.segundos < 270) guia = `Paso 6 (4:00–4:30): ¡Último acelerón a ~2.500 rpm! (ahora ${rpm ?? "–"} rpm, faltan ${270 - g.segundos} s).`;
+    else if (g.segundos < 330) guia = `Paso 7 (4:30–5:30): Último minuto al ralentí sin tocar nada (${330 - g.segundos} s).`;
+    else guia = `¡Prueba completada! Ya puedes pulsar «Terminar» arriba.`;
+  } else if (g.prueba === "arranque_frio") {
+    guia = temp != null && temp >= 98
+      ? `Ya llegó a ${temp} °C (ventilador). Puedes pulsar «Terminar» arriba.`
+      : `Calentando al ralentí sin tocar nada: va por ${temp ?? "–"} °C (espera hasta que pase de ~98 °C y salte el ventilador).`;
+  } else if (g.prueba === "trayecto") {
+    const km = f.diagnostico?.consumo?.km;
+    guia = `Conduce con normalidad (llevas ${km != null ? String(km).replace(".",",") : "0"} km y ${m} min). Al aparcar pulsa «Terminar».`;
+  }
+  $("vpGuia").textContent = guia;
+
+  const cajas = [
+    [rpm != null ? fmt("rpm", rpm) + " rpm" : "–", "Revoluciones"],
+    [temp != null ? fmt("temp_motor", temp) + " °C" : "–", "Temp. motor"],
+    [vel != null ? fmt("velocidad", vel) + " km/h" : "–", "Velocidad"],
+    [corr != null ? (corr > 0 ? "+" : "") + String(corr).replace(".",",") + " %" : "–", "Mezcla (LTFT+STFT)"],
+    [map != null ? fmt("map", map) + " kPa" : "–", "Vacío (MAP)"],
+    [bat != null ? fmt("bateria", bat) + " V" : "–", "Batería"],
+  ];
+  $("vpCifras").innerHTML = cajas.map(([val, etq]) => `<div><b>${val}</b>${etq === "Velocidad" ? lineaGps(f) : ""}<span>${etq}</span></div>`).join("");
+}
+let resPintado = "";
+function pintarResumen(r){
+  const clave = JSON.stringify(r); if (!r || clave===resPintado) return; resPintado = clave;
+  const p = $("ultimoResumen"); p.hidden = false;
+  p.innerHTML = `<h2>Revisión de la última grabación</h2><div class="mensaje-con" style="margin:-6px 0 10px">${esc(r.prueba?.nombre||"")} · ${esc(r.inicio||"")} · ${r.estadisticas?.duracion_min ?? "?"} min</div>${htmlHallazgos(r.hallazgos)}
+    <div class="mensaje-con">Es una revisión automática. Para un diagnóstico de verdad, pásasela a Claude.</div>`;
+  cargarSesiones();
+}
+
+let listaSesionesCache = [], filtroSesActual = "todas", datosVisor = {};
+function botonesMovil(s){
+  const c = JSON.stringify(s.carpeta).replace(/"/g, "&quot;");
+  return `<button class="boton chico" onclick="verGraficas(${c})">📈 Gráficas</button> `
+    + `<button class="boton chico" onclick="MOTOR.compartir(${c})">Compartir</button> <button class="boton chico" onclick="MOTOR.bajar(${c})">⬇ .zip</button>`
+    + (s.fin ? ` <button class="boton chico" onclick="MOTOR.borrarGrabacion(${c})">Borrar</button>` : "");
+}
+function botonesMac(s){
+  const c = JSON.stringify(s.carpeta).replace(/"/g, "&quot;");
+  return `<button class="boton chico" onclick="verGraficas(${c})">📈 Gráficas</button> `
+    + s.archivos.map(a => `<a href="/registros/${encodeURIComponent(s.carpeta)}/${encodeURIComponent(a)}">⬇ ${esc(a)}</a>`).join("")
+    + (s.fin ? `<button class="boton chico" onclick="borrarSesionMac(${c})" title="Borrar grabación">🗑 Borrar</button>` : "");
+}
+function filtrarSesiones(f){
+  filtroSesActual = f;
+  document.querySelectorAll("#filtroSes button").forEach(b => b.classList.toggle("activo", b.dataset.f === f));
+  pintarListaSesiones();
+}
+function pintarAcumulado(lista){
+  const p = $("panelAcumulado");
+  if (!p) return;
+  const reales = lista.filter(s => !(s.lector || "").includes("Simulador") && s.resumen);
+  let km = 0, litros = 0, min = 0, ltSum = 0, ltN = 0, tCarr = [];
+  for (const s of reales) {
+    const c = s.resumen?.consumo || {}, est = s.resumen?.estadisticas || {};
+    km += c.km || 0;
+    litros += c.litros || 0;
+    min += c.min_motor || est.duracion_min || 0;
+    if (est.ltft?.media != null && est.ltft?.n) { ltSum += est.ltft.media * est.ltft.n; ltN += est.ltft.n; }
+    if (est.temp_motor_en_marcha != null) tCarr.push(est.temp_motor_en_marcha);
+  }
+  if (!reales.length || min < 1) { p.hidden = true; return; }
+  p.hidden = false;
+  const l100 = km >= 2 ? Math.round(litros / km * 1000) / 10 : null;
+  const ltMed = ltN ? Math.round(ltSum / ltN * 10) / 10 : null;
+  const tMed = tCarr.length ? Math.round(tCarr.reduce((a,b)=>a+b,0)/tCarr.length) : null;
+  const realRep = ajustesActuales.consumo_real;
+  const facActual = ajustesActuales.factor_consumo || 1;
+  let compHtml = "";
+  if (l100 != null && realRep) {
+    const facSugerido = Math.round((realRep / (l100 / facActual)) * 100) / 100;
+    const dif = Math.abs(realRep - l100);
+    compHtml = `<div class="mensaje-con" style="margin-top:8px">
+      Tus repostajes: <b>${String(realRep).replace(".",",")} L/100 km</b> · Media calculada en ${String(Math.round(km*10)/10).replace(".",",")} km reales: <b>${String(l100).replace(".",",")} L/100 km</b>.
+      ${dif > 0.4 && km >= 10 && facSugerido >= 0.5 && facSugerido <= 2 ? `<button class="boton chico" style="margin-left:6px" onclick="calibrarFactor(${facSugerido})">Calibrar cálculo a mis repostajes (×${String(facSugerido).replace(".",",")})</button>` : `<span class="estado verde" style="margin-left:6px">Calibrado ✓</span>`}
+    </div>`;
+  }
+  const cajas = [
+    [reales.length, "grabaciones reales"],
+    [String(Math.round(km*10)/10).replace(".",",") + " km", "recorridos en total"],
+    [Math.round(min) + " min", "motor en marcha"],
+    [l100 != null ? String(l100).replace(".",",") + " L/100" : String(Math.round(litros*100)/100).replace(".",",") + " L", l100 != null ? "consumo medio real" : "gasolina estimada"],
+    [ltMed != null ? (ltMed > 0 ? "+" : "") + String(ltMed).replace(".",",") + " %" : "–", "LTFT medio"],
+    [tMed != null ? tMed + " °C" : "–", "temp. en carretera"],
+  ];
+  p.innerHTML = `<h2 style="margin-bottom:8px">Resumen acumulado de tu Sandero</h2>
+    <div class="cifras" style="margin-bottom:0">${cajas.map(([v,t]) => `<div><b>${v}</b><span>${t}</span></div>`).join("")}</div>${compHtml}`;
+}
+function recargarSesiones(){ sesionesVistas = ""; cargarSesiones(); }
+async function cargarSesiones(){
+  const lista = await api("/api/sesiones");
+  const clave = JSON.stringify(lista); if (clave===sesionesVistas) return; sesionesVistas = clave;
+  listaSesionesCache = lista;
+  pintarAcumulado(lista);
+  pintarListaSesiones();
+}
+function pintarListaSesiones(){
+  const todas = listaSesionesCache || [];
+  const lista = todas.filter(s => {
+    if (filtroSesActual === "reales") return !(s.lector || "").includes("Simulador");
+    if (filtroSesActual === "avisos") return (s.resumen?.hallazgos || []).some(h => h.nivel === "rojo" || h.nivel === "amarillo");
+    return true;
+  });
+  if ($("cuentaSes")) $("cuentaSes").textContent = `${lista.length} de ${todas.length}`;
+  if (!lista.length) { $("sesiones").className = "vacio"; $("sesiones").innerHTML = "No hay grabaciones con este filtro."; return; }
+  $("sesiones").className = "";
+  $("sesiones").innerHTML = lista.map(s => {
+    const r = s.resumen, n = {rojo:0, amarillo:0, verde:0};
+    (r?.hallazgos||[]).forEach(h => { if (n[h.nivel]!==undefined) n[h.nivel]++; });
+    const fecha = new Date(s.inicio).toLocaleString("es-ES", {weekday:"short", day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"});
+    const demo = (s.lector||"").includes("Simulador") ? ` <span class="estado gris">Simulador</span>` : "";
+    const kmTxt = r?.consumo?.km ? ` · ${String(r.consumo.km).replace(".",",")} km` : "";
+    const l100Txt = r?.consumo?.l100 ? ` · ${String(r.consumo.l100).replace(".",",")} L/100` : "";
+    const notas = (s.notas || []).filter(x => x.t > 0);
+    const notasHtml = notas.length ? `<div class="mensaje-con" style="margin:4px 0">⚑ Marcas: ${notas.map(x => `<b>${esc(x.texto)}</b> (${Math.round(x.t)}s)`).join(" · ")}</div>` : "";
+    return `<div class="sesion" id="ses-${esc(s.carpeta)}"><div class="cab"><b>${esc(s.prueba?.nombre||"Grabación")}</b>${demo}<span>${fecha}${r?.estadisticas?.duracion_min!=null?` · ${String(r.estadisticas.duracion_min).replace(".",",")} min`:""}${kmTxt}${l100Txt}${s.fin?"":" · en curso"}</span></div>
+      ${notasHtml}
+      ${r ? `<div class="chips">${n.rojo?`<span class="estado rojo">${n.rojo} revisar</span>`:""}${n.amarillo?`<span class="estado amarillo">${n.amarillo} ojo</span>`:""}${n.verde?`<span class="estado verde">${n.verde} bien</span>`:""}</div>
+        <details><summary>Ver revisión (${(r.hallazgos||[]).length} puntos)</summary>${htmlHallazgos(r.hallazgos)}</details>` : ""}
+      <div class="fila" style="margin-top:8px;gap:8px">${window.MOTOR ? botonesMovil(s) : botonesMac(s)}</div>
+      <div id="graf-${esc(s.carpeta)}" hidden></div></div>`;
+  }).join("");
+}
+
+async function borrarSesionMac(carpeta){
+  if (!confirm(`¿Borrar la grabación «${carpeta}»?`)) return;
+  const r = await api("/api/borrar_sesion", {carpeta});
+  if (r.ok) { tostada("Grabación borrada"); recargarSesiones(); }
+  else tostada(r.error || "No se pudo borrar");
+}
+async function reanalizarTodas(){
+  tostada("Recalculando todas las grabaciones…");
+  const r = await api("/api/reanalizar", {});
+  if (r.ok) { recargarSesiones(); tostada(`Revisadas ${r.dato} grabaciones`); }
+}
+async function importarArchivos(files){
+  if (!files || !files.length) return;
+  tostada("Importando…");
+  const archivos = [];
+  for (const f of files) {
+    const buf = await f.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let bin = "";
+    for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode(...bytes.subarray(i, i + 8192));
+    archivos.push({nombre: f.name, datos: btoa(bin)});
+  }
+  $("inpImportar").value = "";
+  const r = await api("/api/importar", {archivos});
+  if (r.ok) { recargarSesiones(); tostada(`Importada${r.dato.length>1?"s":""}: ${r.dato.join(", ")}`); }
+  else tostada(r.error || "No se pudo importar");
+}
+
+// --- Visor interactivo de gráficas de una sesión ---
+const DEFINICION_GRAFICAS = [
+  {id:"g1", titulo:"Motor y velocidad", series:[["rpm","Revoluciones","rpm","#3b82f6",0],["velocidad","Velocidad","km/h","#10b981",0]]},
+  {id:"g2", titulo:"Temperatura y admisión (MAP)", series:[["temp_motor","Temp. motor","°C","#ef4444",0],["map","Vacío MAP","kPa","#f59e0b",0]]},
+  {id:"g3", titulo:"Correcciones de mezcla", series:[["ltft","Aprendida (LTFT)","%","#8b5cf6",1],["stft","Rápida (STFT)","%","#06b6d4",1]]},
+  {id:"g4", titulo:"Sondas lambda (delantera y trasera)", series:[["sonda1","Sonda 1 (del.)","V","#2563eb",2],["sonda2","Sonda 2 (tras.)","V","#f97316",2]], fijo:[0,1]},
+  {id:"g5", titulo:"Velocidad: centralita y GPS del móvil", series:[["velocidad","Centralita","km/h","#10b981",0],["gps_velocidad","GPS","km/h","#e11d48",0]], comun:true, si:"gps_velocidad"},
+];
+async function verGraficas(carpeta){
+  const cont = $("graf-" + carpeta);
+  if (!cont) return;
+  if (!cont.hidden) { cont.hidden = true; return; }
+  cont.hidden = false;
+  cont.innerHTML = `<div class="visor-graf">Cargando gráficas…</div>`;
+  const d = datosVisor[carpeta] || (datosVisor[carpeta] = await api("/api/sesion/" + encodeURIComponent(carpeta)));
+  if (!d || d.error || !d.series?.t?.length) {
+    cont.innerHTML = `<div class="visor-graf">No hay suficientes datos para dibujar gráficas.</div>`;
+    return;
+  }
+  const notas = (d.sesion?.notas || []).filter(n => n.t > 0);
+  cont.innerHTML = `<div class="visor-graf">
+    <div class="visor-cursor" id="cur-${carpeta}">Mueve el dedo o el ratón por las gráficas para ver cada instante (${d.total_filas} lecturas).</div>
+    ${DEFINICION_GRAFICAS.filter(g => !g.si || d.series[g.si]).map(g => `<div class="graf-caja">
+      <div class="graf-cab"><span>${esc(g.titulo)}</span>
+        <span>${g.series.map(([k,nom,ud,col]) => `<span style="color:${col};margin-left:10px">● ${esc(nom)} (${ud})</span>`).join("")}</span>
+      </div>
+      <canvas class="graf-s" id="cv-${carpeta}-${g.id}" data-g="${g.id}"></canvas>
+    </div>`).join("")}
+  </div>`;
+  requestAnimationFrame(() => iniciarVisor(carpeta, d, notas));
+}
+function iniciarVisor(carpeta, d, notas){
+  const ts = d.series.t;
+  const n = ts.length;
+  const pintarTodas = idx => {
+    for (const g of DEFINICION_GRAFICAS) {
+      const c = $(`cv-${carpeta}-${g.id}`);
+      if (!c) continue;
+      const dpr = window.devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight;
+      if (!w) continue;
+      c.width = w * dpr; c.height = h * dpr;
+      const ctx = c.getContext("2d"); ctx.scale(dpr, dpr);
+      // líneas de marcas
+      if (notas.length && ts[n-1] > ts[0]) {
+        ctx.strokeStyle = "rgba(239,68,68,0.5)"; ctx.setLineDash([4, 3]);
+        for (const m of notas) {
+          const x = (m.t - ts[0]) / (ts[n-1] - ts[0]) * w;
+          ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+        }
+        ctx.setLineDash([]);
+      }
+      g.series.forEach(([k, _nom, _ud, col]) => {
+        const arr = d.series[k];
+        if (!arr) return;
+        const vals = arr.filter(v => v != null);
+        if (vals.length < 2) return;
+        // escala común (velocidad y GPS): si no, cada línea iría a su escala y no se podrían comparar
+        const todos = g.comun ? g.series.flatMap(([k2]) => (d.series[k2] || []).filter(v => v != null)) : vals;
+        let min = g.fijo ? g.fijo[0] : Math.min(...todos);
+        let max = g.fijo ? g.fijo[1] : Math.max(...todos);
+        if (max - min < 1e-6) { max += 1; min -= 1; }
+        ctx.strokeStyle = col; ctx.lineWidth = 1.8; ctx.lineJoin = "round"; ctx.beginPath();
+        let empezo = false;
+        for (let i = 0; i < n; i++) {
+          const v = arr[i]; if (v == null) continue;
+          const x = i / (n - 1) * w, y = h - 4 - (v - min) / (max - min) * (h - 8);
+          if (!empezo) { ctx.moveTo(x, y); empezo = true; } else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      });
+      if (idx != null && idx >= 0 && idx < n) {
+        const x = idx / (n - 1) * w;
+        ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--txt").trim();
+        ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+      }
+    }
+    const cur = $(`cur-${carpeta}`);
+    if (cur && idx != null && idx >= 0 && idx < n) {
+      const seg = Math.round(ts[idx]);
+      const mm = Math.floor(seg / 60), ss = String(seg % 60).padStart(2, "0");
+      const partes = [`<b>⏱ ${mm}:${ss}</b>`];
+      for (const [k, etq, ud, dec] of [["rpm","RPM","rpm",0],["velocidad","Vel","km/h",0],["gps_velocidad","GPS","km/h",0],["temp_motor","Temp","°C",0],["map","MAP","kPa",0],["ltft","LTFT","%",1],["stft","STFT","%",1],["sonda1","S1","V",2],["sonda2","S2","V",2],["bateria","Bat","V",2]]) {
+        const v = d.series[k]?.[idx];
+        if (v != null) partes.push(`${etq}: <b>${Number(v).toFixed(dec).replace(".",",")} ${ud}</b>`);
+      }
+      cur.innerHTML = partes.join(" · ");
+    }
+  };
+  pintarTodas(n - 1);
+  for (const g of DEFINICION_GRAFICAS) {
+    const c = $(`cv-${carpeta}-${g.id}`);
+    if (!c) continue;
+    const mover = ev => {
+      const rect = c.getBoundingClientRect();
+      const x = (ev.touches ? ev.touches[0].clientX : ev.clientX) - rect.left;
+      const idx = Math.max(0, Math.min(n - 1, Math.round(x / Math.max(1, rect.width) * (n - 1))));
+      pintarTodas(idx);
+    };
+    c.addEventListener("mousemove", mover);
+    c.addEventListener("touchmove", mover, {passive: true});
+    c.addEventListener("touchstart", mover, {passive: true});
+  }
+}
+
+function pintarMantenimiento(m){
+  const p = $("mantPendientes"), h = $("mantHistorial");
+  if (!m) return;
+  const lista = m.pendientes_itv_dic2026 || [];
+  const hechas = lista.filter(x => x.hecho).length;
+  const compradas = lista.filter(x => x.comprado && !x.hecho).length;
+  if ($("mantResumen")) {
+    $("mantResumen").className = "estado " + (hechas === lista.length && lista.length ? "verde" : "amarillo");
+    $("mantResumen").textContent = `${hechas} de ${lista.length} hechas` + (compradas ? ` · ${compradas} compradas` : "");
+  }
+  if ($("mantBarra")) $("mantBarra").style.width = (lista.length ? Math.round(hechas / lista.length * 100) : 0) + "%";
+  p.className = "";
+  p.innerHTML = lista.map((x, i) => `
+    <div class="marca" style="padding:8px 10px;border-radius:10px;background:var(--panel2);margin:6px 0;align-items:center">
+      <input type="checkbox" ${x.hecho?"checked":""} onchange="marcarMantenimiento(${i}, this.checked)" style="cursor:pointer">
+      <span style="flex:1;cursor:pointer;${x.hecho?"text-decoration:line-through;color:var(--sub)":""}" onclick="marcarMantenimiento(${i}, ${!x.hecho})">${esc(x.tarea)}</span>
+      ${x.hecho
+        ? `<span class="estado verde">Hecho ✓</span>`
+        : `<span class="estado ${x.comprado?"amarillo":"gris"}" style="cursor:pointer" title="Pulsa para cambiar entre Pendiente y Comprado" onclick="alternarComprado(${i}, ${!x.comprado})">${x.comprado?"Comprado ✅":"Por comprar"}</span>`}
+      <button class="boton chico" style="padding:3px 7px;background:transparent;color:var(--sub)" title="Quitar de la lista" onclick="borrarTarea(${i})">✕</button>
+    </div>`).join("");
+  h.className = "";
+  h.innerHTML = (m.historial||[]).map(e => `
+    <div class="sesion">
+      <div class="cab"><b>${esc(e.fecha)}</b>${e.km ? `<span>${Number(e.km).toLocaleString("es-ES")} km</span>` : ""}</div>
+      <ul style="margin:6px 0 0;padding-left:20px">${(e.items||[]).map(it => `<li>${esc(it)}</li>`).join("")}</ul>
+    </div>`).join("");
+}
+async function cargarMantenimiento(){
+  pintarMantenimiento(await api("/api/mantenimiento"));
+}
+async function marcarMantenimiento(indice, hecho){
+  const r = await api("/api/mantenimiento", {indice, hecho});
+  if (r.ok) { pintarMantenimiento(r.dato); tostada(hecho ? "Marcado como hecho ✓" : "Desmarcado"); }
+}
+async function alternarComprado(indice, comprado){
+  const r = await api("/api/mantenimiento", {indice, comprado});
+  if (r.ok) { pintarMantenimiento(r.dato); tostada(comprado ? "Marcado como comprado ✅" : "Marcado como por comprar"); }
+}
+async function anadirTarea(){
+  const txt = $("nuevaTareaTxt").value.trim();
+  if (!txt) return;
+  const r = await api("/api/mantenimiento", {nueva_tarea: txt, comprado: $("nuevaTareaComp").checked});
+  if (r.ok) { $("nuevaTareaTxt").value = ""; $("nuevaTareaComp").checked = false; pintarMantenimiento(r.dato); tostada("Tarea añadida"); }
+}
+async function borrarTarea(indice){
+  if (!confirm("¿Quitar esta tarea de la lista pendiente?")) return;
+  const r = await api("/api/mantenimiento", {borrar_indice: indice});
+  if (r.ok) { pintarMantenimiento(r.dato); tostada("Tarea eliminada"); }
+}
+async function anadirHistorial(){
+  const items = ($("histItems").value || "").split(/[,;\n]+/).map(s => s.trim()).filter(Boolean);
+  if (!items.length) return tostada("Escribe al menos un trabajo realizado");
+  const r = await api("/api/mantenimiento", {nuevo_historial: {fecha: $("histFecha").value.trim(), km: $("histKm").value.trim(), items}});
+  if (r.ok) {
+    $("histItems").value = ""; $("histKm").value = ""; $("formHist").hidden = true;
+    pintarMantenimiento(r.dato); tostada("Guardado en el historial del coche");
+  }
+}
+
+function escuchar(){
+  if (window.MOTOR) return MOTOR.suscribir(pintar);
+  const es = new EventSource("/api/stream");
+  es.onmessage = e => pintar(JSON.parse(e.data));
+  es.onerror = () => { $("pastilla").className="pastilla error"; $("pastilla").querySelector("span").textContent="Sin servidor"; };
+}
+
+(async () => {
+  const defs = await api("/api/definiciones");
+  DEF = defs.pids; SISTEMAS = defs.sistemas; NOMBRES_SIS = defs.nombres_sistema;
+  const aj = await api("/api/ajustes");
+  ajustesActuales = aj || {};
+  await cargarPuertos();
+  if (!tarjetasHechas) hacerTarjetas();
+  if (aj.consumo_real && $("consumoReal")) $("consumoReal").value = String(aj.consumo_real).replace(".",",");
+  if (aj.factor_consumo && $("factorConsumo")) $("factorConsumo").value = String(aj.factor_consumo).replace(".",",");
+  if (aj.correccion_bateria != null && $("corrBateria")) $("corrBateria").value = String(aj.correccion_bateria).replace(".",",");
+  if (aj.correccion_velocidad != null && $("corrVelocidad")) $("corrVelocidad").value = String(aj.correccion_velocidad).replace(".",",");
+  if ($("histFecha")) $("histFecha").value = new Date().toISOString().slice(0, 10);
+  escuchar();
+  cargarSesiones();
+})();
+window.addEventListener("resize", () => { redibujarTodo(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "Mi Sandero",
+  "short_name": "Sandero",
+  "description": "Lector OBD del Dacia Sandero: datos en directo, averías y grabaciones para Claude.",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f1720",
+  "theme_color": "#0f1720",
+  "icons": [
+    {"src": "icono-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

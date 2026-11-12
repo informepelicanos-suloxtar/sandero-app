@@ -19,7 +19,7 @@ import threading
 import time
 import traceback
 import zipfile
-from datetime import datetime
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlparse
@@ -27,6 +27,7 @@ from urllib.parse import unquote, urlparse
 import analisis
 import diagnostico
 import pids
+import rutas
 from elm327 import ELM327, ErrorLector, abrir_transporte, puertos_candidatos
 
 BASE = Path(__file__).parent
@@ -91,6 +92,7 @@ class Grabacion:
         self.filas = 0
         self.memoria = []  # las mismas filas en memoria, para el diagnóstico en directo
         self.sesion = {"coche": COCHE, "inicio": ahora.isoformat(timespec="seconds"),
+                       "inicio_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                        "prueba": {"tipo": prueba, **PRUEBAS.get(prueba, {})}, "lector": info,
                        "averias": {}, "notas": []}
         self.guardar_sesion()
@@ -757,6 +759,12 @@ class Manejador(BaseHTTPRequestHandler):
             return self._json(leer_mantenimiento())
         if ruta == "/api/claude":
             return self._json(leer_claude())
+        if ruta == "/api/rutas":
+            return self._json(rutas.lista(REGISTROS, BASE))
+        m_ruta = re.fullmatch(r"/api/ruta/([\w\-]+)", ruta)
+        if m_ruta:
+            d = rutas.detalle(REGISTROS, unquote(m_ruta.group(1)))
+            return self._json(d if d else {"error": "No existe"}, 200 if d else 404)
         m_ses = re.fullmatch(r"/api/sesion/([\w\-]+)", ruta)
         if m_ses:
             d = detalle_sesion(unquote(m_ses.group(1)))
@@ -765,7 +773,8 @@ class Manejador(BaseHTTPRequestHandler):
         if m:
             p = REGISTROS / unquote(m.group(1)) / unquote(m.group(2))
             if p.is_file() and p.resolve().is_relative_to(REGISTROS.resolve()):
-                tipo = {".csv": "text/csv", ".json": "application/json", ".txt": "text/plain"}.get(p.suffix, "application/octet-stream")
+                tipo = {".csv": "text/csv", ".json": "application/json", ".txt": "text/plain",
+                        ".gpx": "application/gpx+xml"}.get(p.suffix, "application/octet-stream")
                 return self._archivo(p, tipo + "; charset=utf-8", descarga=True)
         if ruta.startswith("/movil"):
             sub = ruta[len("/movil"):].lstrip("/") or "index.html"
@@ -841,6 +850,9 @@ class Manejador(BaseHTTPRequestHandler):
         if ruta == "/api/borrar_sesion":
             ok = borrar_sesion(cuerpo.get("carpeta"))
             return self._json({"ok": ok, "error": None if ok else "No se puede borrar la grabación en marcha"}, 200 if ok else 400)
+        if ruta == "/api/ruta_nombre":
+            ok, dato = rutas.poner_nombre(BASE, cuerpo.get("id"), cuerpo.get("nombre"))
+            return self._json({"ok": ok, "dato" if ok else "error": dato}, 200 if ok else 400)
         if ruta == "/api/reanalizar":
             n_ok = reanalizar_sesiones(cuerpo.get("carpeta"))
             return self._json({"ok": True, "dato": n_ok})

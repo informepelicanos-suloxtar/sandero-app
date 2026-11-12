@@ -183,7 +183,22 @@ input[type=text]{font:inherit;width:100%;padding:11px 12px;border-radius:10px;bo
 label.marca{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size:15px}
 .tostada{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--txt);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;z-index:30;max-width:calc(100% - 32px)}
 .tostada.si{opacity:1}
+.ruta-item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--linea);cursor:pointer}
+.ruta-l100{text-align:right;font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
+.ruta-l100 small{display:block;font-size:12px;color:var(--sub);font-weight:600}
+.mapa-ruta{height:340px;border-radius:12px;overflow:hidden;margin:12px 0 6px;background:var(--panel2);border:1px solid var(--linea)}
+.perfil-ruta{width:100%;display:block;margin:6px 0 10px}
+.tabla-scroll{overflow-x:auto;margin:0 -4px}
+.tabla-viajes{font-size:14px;min-width:620px}
+.tabla-viajes th{text-align:left;color:var(--sub);font-weight:600;font-size:12px;padding:6px 4px;border-bottom:1px solid var(--linea)}
+.tabla-viajes td{text-align:left;font-weight:400;white-space:nowrap;font-variant-numeric:tabular-nums}
+.tabla-viajes tbody tr{cursor:pointer}
+.tabla-viajes tr.elegido td{background:var(--panel2)}
+.tabla-ruta td:last-child{white-space:nowrap}
+.motivos{margin:6px 0;padding-left:20px}.motivos li{margin:6px 0}
+.ok-ruta{background:var(--verde-bg);color:var(--verde);padding:10px 12px;border-radius:10px;font-weight:600}
 @media (max-width:560px){
+  .mapa-ruta{height:260px}
   header h1{font-size:19px}
   .rejilla{grid-template-columns:1fr 1fr;gap:8px}
   .tarjeta{padding:11px;border-left-width:4px}
@@ -257,6 +272,7 @@ label.marca{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size
     <button data-p="averias">Averías <span class="cuenta" id="cuentaAv" hidden>0</span></button>
     <button data-p="pruebas">Pruebas</button>
     <button data-p="historial">Grabaciones</button>
+    <button data-p="rutas">🗺️ Rutas</button>
     <button data-p="mantenimiento">Mantenimiento</button>
     <button data-p="claude">💬 Claude <span class="cuenta" id="cuentaClaude" hidden>nuevo</span></button>
   </nav>
@@ -372,6 +388,17 @@ label.marca{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size
       </div>
       <div id="sesiones" class="vacio">Cargando…</div>
     </div>
+  </section>
+
+  <!-- RUTAS -->
+  <section class="pestana" id="p-rutas">
+    <div class="panel">
+      <h2>Rutas</h2>
+      <p class="mensaje-con" style="margin-top:0">Cada salida con GPS se guarda como ruta (con su <b>GPX</b>, que abre BaseCamp o Garmin Connect).
+        Las veces que haces el mismo recorrido se juntan, y cada una se compara con la vez que menos gastó para decirte <b>por qué</b> gastó más.</p>
+      <div id="listaRutas" class="vacio">Cargando…</div>
+    </div>
+    <div class="panel" id="panelRuta" hidden></div>
   </section>
 
   <!-- CLAUDE -->
@@ -492,6 +519,7 @@ document.querySelectorAll("#pestanas button").forEach(b => b.onclick = () => {
   document.querySelectorAll(".pestana").forEach(p => p.classList.toggle("activa", p.id==="p-"+b.dataset.p));
   if (b.dataset.p==="directo") requestAnimationFrame(redibujarTodo);
   if (b.dataset.p==="historial") cargarSesiones();
+  if (b.dataset.p==="rutas") cargarRutas();
   if (b.dataset.p==="mantenimiento") cargarMantenimiento();
   if (b.dataset.p==="claude") cargarClaude();
 });
@@ -1008,12 +1036,14 @@ let listaSesionesCache = [], filtroSesActual = "todas", datosVisor = {};
 function botonesMovil(s){
   const c = JSON.stringify(s.carpeta).replace(/"/g, "&quot;");
   return `<button class="boton chico" onclick="verGraficas(${c})">📈 Gráficas</button> `
+    + ((s.archivos || []).includes("ruta.json") ? `<button class="boton chico" onclick="irARuta(${c})">🗺️ Ruta</button> ` : "")
     + `<button class="boton chico" onclick="MOTOR.compartir(${c})">Compartir</button> <button class="boton chico" onclick="MOTOR.bajar(${c})">⬇ .zip</button>`
     + (s.fin ? ` <button class="boton chico" onclick="MOTOR.borrarGrabacion(${c})">Borrar</button>` : "");
 }
 function botonesMac(s){
   const c = JSON.stringify(s.carpeta).replace(/"/g, "&quot;");
   return `<button class="boton chico" onclick="verGraficas(${c})">📈 Gráficas</button> `
+    + (s.archivos.includes("ruta.json") ? `<button class="boton chico" onclick="irARuta(${c})">🗺️ Ruta</button> ` : "")
     + s.archivos.map(a => `<a href="/registros/${encodeURIComponent(s.carpeta)}/${encodeURIComponent(a)}">⬇ ${esc(a)}</a>`).join("")
     + (s.fin ? `<button class="boton chico" onclick="borrarSesionMac(${c})" title="Borrar grabación">🗑 Borrar</button>` : "");
 }
@@ -1289,6 +1319,169 @@ async function anadirHistorial(){
     $("histItems").value = ""; $("histKm").value = ""; $("formHist").hidden = true;
     pintarMantenimiento(r.dato); tostada("Guardado en el historial del coche");
   }
+}
+
+// ------------------------------------------------------------------ RUTAS (GPS del móvil)
+// Cada salida con posición GPS deja ruta.gpx y ruta.json (rutas.py). Aquí se juntan las veces que se repite un
+// recorrido para comparar lo que gastó y, sobre todo, por qué.
+let rutasCache = null, rutaAbierta = null, viajeElegido = null, mapa = null, capasMapa = [], leafletListo = null;
+const n1 = (x, d = 1) => x == null ? "–" : Number(x).toFixed(d).replace(".", ",");
+const fechaCorta = s => s ? new Date(s).toLocaleString("es-ES", {weekday:"short", day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"}) : "";
+const nombreRuta = r => r.nombre || `Ruta de ${n1(r.km)} km` + (r.sube_m != null ? ` (sube ${r.sube_m} m)` : "");
+function colorL100(x){  // verde poco, rojo mucho (este motor: 6-7 en carretera llana, 12+ en ciudad o cuestas)
+  if (x == null) return "#8995a3";
+  return x < 6 ? "#15904f" : x < 8.5 ? "#6aa84f" : x < 11 ? "#e0a800" : x < 15 ? "#e8710a" : "#c9362e";
+}
+async function cargarRutas(){
+  const caja = $("listaRutas");
+  let d;
+  try { d = await api("/api/rutas"); } catch (e) { caja.className = "vacio"; caja.textContent = "No se pudieron leer las rutas."; return; }
+  rutasCache = d.rutas || [];
+  if (!rutasCache.length) {
+    caja.className = "vacio";
+    caja.innerHTML = `Todavía no hay ninguna salida con posición GPS.<br>Para que se guarde la ruta: abre la app con internet
+      (para que se actualice), dale <b>permiso de ubicación</b> y graba una salida. Al terminar aparecerá aquí.`;
+    return;
+  }
+  caja.className = "";
+  caja.innerHTML = rutasCache.map(r => `<div class="ruta-item" onclick="verRuta(${JSON.stringify(r.id).replace(/"/g, "&quot;")})">
+      <div><b>${esc(nombreRuta(r))}</b>
+        <div class="mensaje-con" style="margin:2px 0 0">${r.veces} ${r.veces === 1 ? "vez" : "veces"} · última ${esc(fechaCorta(r.ultima))}
+          ${r.sube_m != null ? ` · ↗ ${r.sube_m} m ↘ ${r.baja_m} m` : ""}</div></div>
+      <div class="ruta-l100"><span style="color:${colorL100(r.l100_media)}">${n1(r.l100_media)}</span><small>L/100${r.veces > 1 && n1(r.l100_min) !== n1(r.l100_max) ? `<br>${n1(r.l100_min)}–${n1(r.l100_max)}` : ""}</small></div>
+    </div>`).join("");
+  if (rutaAbierta && rutasCache.some(r => r.id === rutaAbierta)) verRuta(rutaAbierta, viajeElegido);
+}
+function cargarLeaflet(){
+  if (window.L && window.L.map) return Promise.resolve();
+  if (leafletListo) return leafletListo;
+  leafletListo = new Promise((ok, mal) => {
+    const css = document.createElement("link");
+    css.rel = "stylesheet"; css.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+    document.head.appendChild(css);
+    const s = document.createElement("script");
+    s.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+    s.onload = ok; s.onerror = () => { leafletListo = null; mal(new Error("sin internet")); };
+    document.head.appendChild(s);
+  });
+  return leafletListo;
+}
+function htmlEnQue(v){  // dónde se fue la gasolina de un viaje
+  const e = v.en_que; if (!e || !v.litros) return "";
+  const clases = [["Subiendo", e.subida], ["En llano", e.llano], ["Bajando", e.bajada]].filter(([, l]) => l != null);
+  const deEso = [["parado con el motor en marcha (semáforos, esperas)", e.parado], ["de más por ir con el motor frío", e.extra_frio]]
+    .filter(([, l]) => l != null && l >= 0.01);
+  return `<table class="tabla-ruta">${clases.map(([t, l]) => `<tr><td>${t}</td><td>${n1(l, 2)} L</td></tr>`).join("")}
+    <tr><td><b>Total de la salida</b></td><td>${n1(v.litros, 2)} L</td></tr></table>
+    ${deEso.length ? `<p class="mensaje-con">De todo eso: ${deEso.map(([t, l]) => `<b>${n1(l, 2)} L</b> ${t}`).join(" y ")}.</p>` : ""}
+    <p class="mensaje-con">Subiendo, en llano y bajando pueden no cuadrar del todo con el total: lo gastado antes de que el GPS cogiera señal no tiene sitio en el camino.</p>`;
+}
+function htmlPorQue(v, mejor){
+  if (v.mejor) return `<p class="ok-ruta">⭐ Es la vez que menos gastó en esta ruta: es la referencia con la que se comparan las demás.</p>`;
+  const p = v.por_que;
+  if (!p || p.litros_de_mas == null) return `<p class="mensaje-con">Hace falta otra vez por la misma ruta para comparar.</p>`;
+  if (p.litros_de_mas < 0.05) return `<p class="ok-ruta">Gastó lo mismo que la mejor vez (${n1(v.l100)} frente a ${n1(mejor?.l100)} L/100).</p>`;
+  const conL = p.motivos.filter(m => m.litros != null), sinL = p.motivos.filter(m => m.litros == null);
+  return `<p><b>Gastó ${n1(p.litros_de_mas, 2)} L más que la mejor vez</b> (${n1(v.l100)} frente a ${n1(mejor?.l100)} L/100). Por qué:</p>
+    ${p.motivos.length ? `<ul class="motivos">${conL.map(m => `<li><b>+${n1(m.litros, 2)} L</b> · ${esc(m.texto)}</li>`).join("")}
+      ${sinL.map(m => `<li>${esc(m.texto)}</li>`).join("")}</ul>`
+      : `<p class="mensaje-con">No hay una causa clara: el gasto de más está repartido por todo el camino (tráfico, viento, carga del coche…).</p>`}
+    ${conL.length ? `<p class="mensaje-con">Los litros de cada motivo son aproximados y pueden solaparse (un semáforo en un kilómetro cuenta en los dos).</p>` : ""}`;
+}
+async function verRuta(id, carpeta){
+  const r = (rutasCache || []).find(x => x.id === id); if (!r) return;
+  rutaAbierta = id;
+  const mejor = r.viajes.find(v => v.mejor);
+  viajeElegido = carpeta && r.viajes.some(v => v.carpeta === carpeta) ? carpeta : r.viajes[0].carpeta;
+  const v = r.viajes.find(x => x.carpeta === viajeElegido);
+  const p = $("panelRuta"); p.hidden = false;
+  const enlaceGpx = window.MOTOR ? `<button class="boton chico" onclick="MOTOR.bajarArchivo(${JSON.stringify(v.carpeta).replace(/"/g, "&quot;")}, 'ruta.gpx')">⬇ GPX</button>`
+    : `<a class="boton chico" href="/registros/${encodeURIComponent(v.carpeta)}/ruta.gpx" download="sandero_${esc(v.carpeta)}.gpx">⬇ GPX</a>`;
+  p.innerHTML = `<div class="fila" style="justify-content:space-between;gap:8px">
+      <h2 style="margin:0">${esc(nombreRuta(r))}</h2>
+      <div class="fila" style="gap:6px"><button class="boton chico" onclick="renombrarRuta(${JSON.stringify(r.id).replace(/"/g, "&quot;")})">✎ Nombre</button>${enlaceGpx}</div></div>
+    <div class="mensaje-con" style="margin-top:4px">${r.veces} ${r.veces === 1 ? "vez" : "veces"} · ${n1(r.km)} km${r.sube_m != null ? ` · sube ${r.sube_m} m y baja ${r.baja_m} m` : ""}.
+      El color del camino es lo que gastaba en cada tramo: <span style="color:${colorL100(5)}">●</span> poco → <span style="color:${colorL100(16)}">●</span> mucho.</div>
+    <div id="mapaRuta" class="mapa-ruta"><div class="vacio" style="padding:12px">Cargando mapa…</div></div>
+    <canvas id="perfilRuta" class="perfil-ruta"></canvas>
+    <div class="tabla-scroll"><table class="tabla-viajes"><thead><tr><th>Salida</th><th>L/100</th><th>km</th><th>min</th>
+      <th>Subiendo</th><th>Llano</th><th>Bajando</th><th>Parado</th><th>Frío</th></tr></thead><tbody>
+      ${r.viajes.map(x => { const f = x.factores || {}, c = x.clases || {};
+        return `<tr class="${x.carpeta === viajeElegido ? "elegido" : ""}" onclick="verRuta(${JSON.stringify(r.id).replace(/"/g, "&quot;")}, ${JSON.stringify(x.carpeta).replace(/"/g, "&quot;")})">
+        <td>${x.mejor ? "⭐ " : ""}${esc(fechaCorta(x.inicio))}</td><td style="color:${colorL100(x.l100)}"><b>${n1(x.l100)}</b></td>
+        <td>${n1(x.km)}</td><td>${n1(x.min, 0)}</td><td>${n1(c.subida?.l100)}</td><td>${n1(c.llano?.l100)}</td><td>${n1(c.bajada?.l100)}</td>
+        <td>${n1(f.min_parado, 0)} min</td><td>${n1(f.min_frio, 0)} min</td></tr>`; }).join("")}
+    </tbody></table></div>
+    <h3>${esc(fechaCorta(v.inicio))}: ¿por qué gastó lo que gastó?</h3>
+    ${htmlPorQue(v, mejor)}
+    <details ${r.veces === 1 ? "open" : ""}><summary>Dónde se fue la gasolina en esta salida</summary>${htmlEnQue(v)}
+      <p class="mensaje-con">Motor: ${v.temp_motor_media ?? "–"} °C de media · aire al salir ${v.factores?.temp_aire ?? "–"} °C ·
+        corrección de la mezcla +${n1(v.correccion_mezcla)} % · ${v.factores?.paradas ?? "–"} paradas · ${v.factores?.acelerones ?? "–"} acelerones ·
+        máxima ${v.factores?.kmh_max ?? "–"} km/h · ${v.factores?.rpm_a_50 ? `${v.factores.rpm_a_50} rpm a 50 km/h` : ""}</p></details>`;
+  p.scrollIntoView({behavior: "smooth", block: "start"});
+  let d;
+  try { d = await api("/api/ruta/" + encodeURIComponent(v.carpeta)); } catch (e) { d = null; }
+  if (!d || d.error) { $("mapaRuta").innerHTML = `<div class="vacio" style="padding:12px">No encuentro el recorrido de esta salida.</div>`; return; }
+  const dRef = mejor && mejor.carpeta !== v.carpeta ? await api("/api/ruta/" + encodeURIComponent(mejor.carpeta)).catch(() => null) : null;
+  pintarPerfil(d, dRef && !dRef.error ? dRef : null);
+  try { await cargarLeaflet(); } catch (e) {
+    $("mapaRuta").innerHTML = `<div class="vacio" style="padding:12px">Sin internet no se puede dibujar el mapa (el resto sí está).</div>`; return;
+  }
+  pintarMapa(d, dRef && !dRef.error ? dRef : null);
+}
+function pintarMapa(d, ref){
+  const caja = $("mapaRuta");
+  if (mapa) { mapa.remove(); mapa = null; }
+  caja.innerHTML = "";
+  mapa = L.map(caja, {scrollWheelZoom: false});
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19, attribution: "© OpenStreetMap"}).addTo(mapa);
+  if (ref) L.polyline(ref.puntos.map(p => [p[0], p[1]]), {color: "#7a8491", weight: 3, dashArray: "6 6", opacity: .8})
+    .bindTooltip("La mejor vez").addTo(mapa);
+  let tramo = [], col = null;
+  const pts = d.puntos;
+  for (let i = 0; i < pts.length; i++) {
+    const c = colorL100(pts[i][4]);
+    if (c !== col && tramo.length) { L.polyline(tramo, {color: col, weight: 5}).addTo(mapa); tramo = [tramo[tramo.length - 1]]; }
+    col = c; tramo.push([pts[i][0], pts[i][1]]);
+  }
+  if (tramo.length > 1) L.polyline(tramo, {color: col, weight: 5}).addTo(mapa);
+  L.circleMarker([pts[0][0], pts[0][1]], {radius: 7, color: "#15904f", fillOpacity: 1}).bindTooltip("Salida").addTo(mapa);
+  L.circleMarker([pts[pts.length - 1][0], pts[pts.length - 1][1]], {radius: 7, color: "#c9362e", fillOpacity: 1}).bindTooltip("Llegada").addTo(mapa);
+  mapa.fitBounds(L.latLngBounds(pts.map(p => [p[0], p[1]])), {padding: [20, 20]});
+}
+function pintarPerfil(d, ref){  // altura por km, con el gasto de cada tramo en color debajo
+  const cv = $("perfilRuta"); if (!cv) return;
+  const tr = d.tramos || [], pts = d.puntos || [];
+  if (!d.con_altura || !pts.length) { cv.hidden = true; return; }
+  const dpr = window.devicePixelRatio || 1, W = cv.clientWidth || 600, H = 170;
+  cv.width = W * dpr; cv.height = H * dpr; cv.style.height = H + "px";
+  const g = cv.getContext("2d"); g.scale(dpr, dpr);
+  const est = getComputedStyle(document.documentElement);
+  const km = pts[pts.length - 1][3] || 1, alts = pts.map(p => p[2]).concat(ref ? ref.puntos.map(p => p[2]) : []).filter(a => a != null);
+  const amin = Math.min(...alts), amax = Math.max(...alts, amin + 20);
+  const x = k => 34 + k / km * (W - 44), y = a => 12 + (1 - (a - amin) / (amax - amin)) * (H - 52);
+  for (const t of tr) { g.fillStyle = colorL100(t.l100); g.fillRect(x(t.km), H - 30, Math.max(1, x(t.km + t.m / 1000) - x(t.km)), 10); }
+  const linea = (ps, color, ancho, raya) => { g.beginPath(); g.setLineDash(raya || []); g.strokeStyle = color; g.lineWidth = ancho;
+    ps.forEach((p, i) => p[2] != null && (i ? g.lineTo(x(p[3]), y(p[2])) : g.moveTo(x(p[3]), y(p[2])))); g.stroke(); g.setLineDash([]); };
+  if (ref) linea(ref.puntos, est.getPropertyValue("--gris").trim() || "#888", 1.5, [5, 4]);
+  linea(pts, est.getPropertyValue("--acento").trim() || "#2563eb", 2.5);
+  g.fillStyle = est.getPropertyValue("--sub").trim() || "#666"; g.font = "12px system-ui, sans-serif";
+  g.fillText(`${Math.round(amax)} m`, 0, 16); g.fillText(`${Math.round(amin)} m`, 0, H - 40);
+  g.fillText("0 km", 34, H - 6); const tk = `${n1(km)} km`; g.fillText(tk, W - 10 - g.measureText(tk).width, H - 6);
+  g.fillText("gasto por tramo", W / 2 - 45, H - 6);
+}
+async function renombrarRuta(id){
+  const r = (rutasCache || []).find(x => x.id === id); if (!r) return;
+  const nombre = prompt("Nombre de esta ruta (por ejemplo «Casa → trabajo»). Vacío para quitarlo:", r.nombre || "");
+  if (nombre === null) return;
+  const res = await api("/api/ruta_nombre", {id, nombre});
+  if (res.ok) { tostada("Nombre guardado"); cargarRutas(); } else tostada(res.error || "No se pudo guardar");
+}
+function irARuta(carpeta){
+  document.querySelector('[data-p="rutas"]').click();
+  const abrirla = () => { const r = (rutasCache || []).find(x => x.viajes.some(v => v.carpeta === carpeta)); if (r) verRuta(r.id, carpeta); };
+  if (rutasCache) abrirla(); else setTimeout(abrirla, 800);
+  cargarRutas().then(abrirla);
 }
 
 function escuchar(){

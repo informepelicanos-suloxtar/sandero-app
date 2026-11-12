@@ -10,8 +10,8 @@
  */
 (() => {
 "use strict";
-const VERSION = "778b0e40d0";
-const PY = ["pids.py", "averias.py", "diagnostico.py", "analisis.py", "servidor.py", "elm327.py", "simulador.py", "movil_py.py"];
+const VERSION = "959f33d338";
+const PY = ["pids.py", "averias.py", "diagnostico.py", "analisis.py", "rutas.py", "servidor.py", "elm327.py", "simulador.py", "movil_py.py"];
 const espera = ms => new Promise(r => setTimeout(r, ms));
 const h2 = n => n.toString(16).toUpperCase().padStart(2, "0");
 const bytesDeHex = s => { const out = []; for (let i = 0; i + 1 < s.length; i += 2) out.push(parseInt(s.slice(i, i + 2), 16)); return out; };
@@ -704,6 +704,36 @@ async function sincronizarMantenimiento(forzar) {
   if (otra) return sincronizarMantenimiento(true);  // se marcó algo mientras tanto
 }
 
+// Nombres de las rutas (pestaña 🗺️ Rutas): rutas.json en la raíz del repositorio. Lo que se cambia en el móvil se
+// sube; si no hay nada pendiente, manda lo del repositorio (por si se le puso nombre desde el Mac).
+const RUTAS_F = "/coche/rutas.json", RUTAS_EST = "/coche/rutas_nube.json";
+async function sincronizarRutas(subir) {
+  if (!py || !nube().token || !navigator.onLine) return;
+  try {
+    if (subir || leerJSON(RUTAS_EST, {}).pendiente) {
+      const local = leerJSON(RUTAS_F, {});
+      await commitArchivos([["rutas.json", new TextEncoder().encode(JSON.stringify(local, null, 2) + "\n")]],
+        "Rutas: nombres puestos desde el móvil");
+      escribirJSON(RUTAS_EST, { pendiente: false });
+    } else {
+      const texto = await gh("/contents/rutas.json?ref=main", { crudo: true, vacio404: true });
+      if (texto) { const dato = JSON.parse(texto); if (dato && typeof dato === "object") escribirJSON(RUTAS_F, dato); }
+    }
+    guardar();
+  } catch (e) { console.error("rutas", e); }
+}
+
+async function bajarArchivo(carpeta, nombre) {  // p. ej. el GPX de una salida: compartir (Garmin, Drive…) o a Descargas
+  await listo;
+  if (!/^[\w-]+$/.test(carpeta) || !/^[\w.-]+$/.test(nombre)) return;
+  let d; try { d = py.FS.readFile(`/coche/registros/${carpeta}/${nombre}`); } catch { return tostadaMovil("No encuentro ese archivo"); }
+  const f = new File([d], `sandero_${carpeta}_${nombre}`, { type: nombre.endsWith(".gpx") ? "application/gpx+xml" : "application/octet-stream" });
+  if (navigator.canShare && navigator.canShare({ files: [f] })) {
+    try { await navigator.share({ files: [f], title: "Ruta del Sandero" }); return; } catch (e) { if (e.name === "AbortError") return; }
+  }
+  descargar(f); tostadaMovil("Guardado en Descargas: " + f.name);
+}
+
 async function leerClaude(forzar) {
   const caja = { leer: () => { try { return JSON.parse(localStorage.getItem("claudeCopia") || "null"); } catch { return null; } },
                  poner: x => { try { localStorage.setItem("claudeCopia", JSON.stringify(x)); } catch {} } };
@@ -762,6 +792,8 @@ async function api(ruta, cuerpo) {
   if (cuerpo === undefined && ruta.startsWith("/api/claude")) return leerClaude(ruta.includes("forzar"));
   if (cuerpo === undefined && ruta === "/api/mantenimiento")  // antes de pintarlo, lo último del repositorio (sin esperar de más)
     await conTiempo(Promise.resolve(sincronizarMantenimiento()), 6000, "tarda").catch(() => {});
+  if (cuerpo === undefined && ruta === "/api/rutas")  // los nombres de las rutas, por si se cambiaron desde el Mac
+    await conTiempo(Promise.resolve(sincronizarRutas()), 5000, "tarda").catch(() => {});
   if (cuerpo === undefined) return JSON.parse(M.get(ruta));
   const accion = (n, a) => { const r = JSON.parse(M.accion(n, JSON.stringify(a))); guardar(); return r; };
   switch (ruta) {
@@ -786,6 +818,7 @@ async function api(ruta, cuerpo) {
       const r = JSON.parse(M.post(ruta, JSON.stringify(cuerpo)));
       if (ruta !== "/api/gps") guardar();  // el GPS llega 2,5 veces/s: ya se guarda solo cada 10 s
       if (ruta === "/api/mantenimiento") mantenimientoTocado();
+      if (ruta === "/api/ruta_nombre" && r.ok) { escribirJSON(RUTAS_EST, { pendiente: true }); sincronizarRutas(true); }
       return r;
     }
   }
@@ -848,6 +881,6 @@ function ajustarTextos() {  // lo poco que cambia respecto al Mac
     + "puesta (pestaña 💬 Claude), también en el repositorio, para que lo vean Claude y el Mac.";
 }
 
-window.MOTOR = { api, suscribir, compartir, bajar, borrarGrabacion, version: VERSION,
+window.MOTOR = { api, suscribir, compartir, bajar, bajarArchivo, borrarGrabacion, version: VERSION,
   opcionesLector: [["ble", "Lector OBD por Bluetooth"], ["ble_todos", "Buscar cualquier aparato Bluetooth"], ["demo", "Coche de prueba (demostración)"]] };
 })();

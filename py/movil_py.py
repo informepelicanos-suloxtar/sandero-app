@@ -18,6 +18,7 @@ import analisis
 import averias
 import diagnostico
 import pids
+import rutas
 import servidor
 
 
@@ -183,6 +184,11 @@ def get(ruta):
         return _j(servidor.lista_sesiones())
     if ruta == "/api/mantenimiento":
         return _j(servidor.leer_mantenimiento())
+    if ruta == "/api/rutas":
+        return _j(rutas.lista(servidor.REGISTROS, servidor.BASE))
+    if ruta.startswith("/api/ruta/"):
+        d = rutas.detalle(servidor.REGISTROS, ruta.split("/api/ruta/", 1)[1])
+        return _j(d if d else {"error": "No existe"})
     if ruta.startswith("/api/sesion/"):
         d = servidor.detalle_sesion(ruta.split("/api/sesion/", 1)[1])
         return _j(d if d else {"error": "No existe"})
@@ -206,6 +212,9 @@ def post(ruta, cuerpo_json):
     if ruta == "/api/borrar_sesion":
         ok = servidor.borrar_sesion(cuerpo.get("carpeta"))
         return _j({"ok": ok, "error": None if ok else "No se puede borrar la grabación en marcha"})
+    if ruta == "/api/ruta_nombre":
+        ok, dato = rutas.poner_nombre(servidor.BASE, cuerpo.get("id"), cuerpo.get("nombre"))
+        return _j({"ok": ok, "dato" if ok else "error": dato})
     if ruta == "/api/reanalizar":
         return _j({"ok": True, "dato": servidor.reanalizar_sesiones(cuerpo.get("carpeta"))})
     if ruta == "/api/importar":

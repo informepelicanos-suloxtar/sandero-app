@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 import diagnostico
+import rutas
 
 BASE = Path(__file__).parent
 REGISTROS = BASE / "registros"
@@ -76,6 +77,10 @@ def analizar(carpeta):
     if sesion.get("notas"):
         lineas += ["", "Marcas «Ha pasado algo»:"] + [f"  {n['t']:.0f}s ({n['hora']}) {n['texto']}" for n in sesion["notas"]]
     (carpeta / "resumen.txt").write_text("\n".join(lineas))
+    try:  # con posición GPS: ruta.gpx y ruta.json (pestaña Rutas)
+        rutas.guardar(carpeta, filas, sesion, resumen, aj.get("factor_consumo"))
+    except Exception as e:  # que un fallo del recorrido no deje la grabación sin revisar
+        print("No se pudo guardar la ruta:", e, file=sys.stderr)
     return resumen
 
 

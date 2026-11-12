@@ -500,6 +500,7 @@ def diagnosticar(filas, averias=None, consumo_real=None, factor_consumo=None, co
     # ================= salud de cada sensor (valores imposibles, congelados, saltos, incoherencias)
     # --- velocidad del coche frente al GPS del móvil (página /gps)
     _gps_vs_coche(filas, corr_velocidad or 1.0, stats, h)
+    _recorrido_gps(filas, stats, h)
     _salud_sensores(filas, marcha, h, en_marcha, parado, caliente, conduciendo, lazo, temps, acel_min)
 
     # ================= consumo
@@ -554,6 +555,47 @@ def _gps_vs_coche(filas, corr, stats, h):
           f"Con la corrección {_n(corr, 3)} la centralita aún marca un {_n(abs(dif))} % "
           f"{'menos' if dif > 0 else 'más'} que el GPS ({len(ratios)} momentos a velocidad estable). "
           f"Pon {_n(sugerido, 3)} en «Corrección velocidad». No es avería: suele ser el tamaño de las ruedas.")
+
+
+def _recorrido_gps(filas, stats, h):
+    """Con la posición y la altura del GPS del móvil: km recorridos, cuánto sube y cuánto baja."""
+    import math
+    puntos = [(f["t"], f["gps_lat"], f["gps_lon"], f.get("gps_alt")) for f in filas
+              if f.get("gps_lat") is not None and f.get("gps_lon") is not None]
+    if len(puntos) < 30:
+        return
+    km, ant = 0.0, None
+    for _t, la, lo, _a in puntos:
+        if ant and (ant[0], ant[1]) != (la, lo):
+            dla, dlo = math.radians(la - ant[0]), math.radians(lo - ant[1])
+            x = math.sin(dla / 2) ** 2 + math.cos(math.radians(la)) * math.cos(math.radians(ant[0])) * math.sin(dlo / 2) ** 2
+            d = 2 * 6371 * math.asin(math.sqrt(x))
+            if d < 0.2:  # saltos raros del GPS (más de 200 m entre dos lecturas): fuera
+                km += d
+        ant = (la, lo)
+    stats["gps_recorrido"] = {"puntos": len(puntos), "km_gps": round(km, 1)}
+    alts = [a for *_r, a in puntos if a is not None]
+    if len(alts) < 30:
+        h("marcha", "gris", "Recorrido con GPS", f"{_n(km)} km según el GPS del móvil (sin altura fiable).")
+        return
+    # alisar (el GPS baila ±5-10 m en altura) y contar subidas y bajadas solo cuando cambian más de 5 m
+    ventana = 15
+    lisas = [sorted(alts[max(0, i - ventana):i + ventana + 1])[len(alts[max(0, i - ventana):i + ventana + 1]) // 2]
+             for i in range(len(alts))]
+    sube = baja = 0.0
+    ref = lisas[0]
+    for a in lisas:
+        if a - ref >= 5:
+            sube += a - ref; ref = a
+        elif ref - a >= 5:
+            baja += ref - a; ref = a
+    stats["gps_recorrido"].update({"sube_m": round(sube), "baja_m": round(baja),
+                                   "alt_min": round(min(lisas)), "alt_max": round(max(lisas)),
+                                   "alt_inicio": round(lisas[0]), "alt_fin": round(lisas[-1])})
+    h("marcha", "gris", "Recorrido con GPS",
+      f"{_n(km)} km según el GPS del móvil. Sube {round(sube)} m y baja {round(baja)} m "
+      f"(empieza a {round(lisas[0])} m y acaba a {round(lisas[-1])} m sobre el mar; "
+      f"entre {round(min(lisas))} y {round(max(lisas))} m).")
 
 
 def _cambios(filas, clave):
@@ -681,7 +723,7 @@ def _salud_sensores(filas, marcha, h, en_marcha, parado, caliente, conduciendo, 
 
     # --- sensores que el coche dice tener pero no contestan
     if len(filas) > 150:
-        claves = {k for f in filas[:5] for k in f if k not in ("t", "consumo_l100", "consumo_lh", "gps_velocidad")}
+        claves = {k for f in filas[:5] for k in f if k not in ("t", "consumo_l100", "consumo_lh") and not k.startswith("gps_")}
         mudos = [k for k in claves if all(f.get(k) is None for f in filas)]
         if mudos:
             h("averias", "gris", "Datos que el coche anuncia pero no da",

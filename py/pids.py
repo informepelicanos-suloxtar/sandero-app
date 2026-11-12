@@ -141,6 +141,12 @@ DERIVADOS = {
     "gps_velocidad": ("Velocidad GPS (móvil)", "km/h", 0,
                       "La que mide el GPS del iPhone con la página /gps abierta. Sirve para calibrar la velocidad del coche.",
                       "A velocidad estable debe parecerse a «Velocidad» (±2 %)."),
+    "gps_lat": ("Latitud GPS (móvil)", "°", 6, "Posición del coche según el GPS del móvil, para ver el trayecto.", ""),
+    "gps_lon": ("Longitud GPS (móvil)", "°", 6, "Posición del coche según el GPS del móvil, para ver el trayecto.", ""),
+    "gps_alt": ("Altura GPS (móvil)", "m", 0,
+                "Altura sobre el mar según el GPS del móvil. Sirve para saber si vas subiendo o bajando una cuesta.",
+                "El GPS se equivoca ±10 m en altura: vale para cuestas largas, no para baches."),
+    "gps_precision": ("Precisión GPS (móvil)", "m", 0, "Margen de error de la posición del GPS.", "Menos de 15 m es buena señal."),
 }
 
 

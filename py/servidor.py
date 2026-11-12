@@ -44,6 +44,36 @@ PRUEBAS = {
 }
 
 
+# ------------------------------------------------------------------ GPS del móvil
+
+GPS_CLAVES = ("gps_velocidad", "gps_lat", "gps_lon", "gps_alt", "gps_precision")
+
+
+def _num(x, minimo, maximo):
+    try:
+        x = float(x)
+    except (TypeError, ValueError):
+        return None
+    return x if minimo <= x <= maximo and x == x else None
+
+
+def gps_valores(v, precision=None, lat=None, lon=None, alt=None, precision_alt=None):
+    """Lo que manda el navegador del móvil, limpio. Lo que no sea creíble queda en None.
+    La altura solo se guarda si el móvil dice que es fiable (±20 m o mejor; si no da precisión, se acepta)."""
+    v, prec = _num(v, 0, 249.9), _num(precision, 0, 30)
+    lat, lon = _num(lat, -90, 90), _num(lon, -180, 180)
+    if lat is None or lon is None or (lat == 0 and lon == 0):
+        lat = lon = None
+    alt, prec_alt = _num(alt, -500, 9000), _num(precision_alt, 0, 1e6)
+    if prec_alt is not None and prec_alt > 20:
+        alt = None
+    return {"gps_velocidad": round(v, 1) if v is not None else None,
+            "gps_lat": round(lat, 6) if lat is not None else None,
+            "gps_lon": round(lon, 6) if lon is not None else None,
+            "gps_alt": round(alt, 1) if alt is not None and lat is not None else None,
+            "gps_precision": round(prec) if prec is not None and lat is not None else None}
+
+
 # ------------------------------------------------------------------ grabación
 
 class Grabacion:
@@ -239,7 +269,7 @@ class Lector(threading.Thread):
     def _claves(self):
         claves = [pids.DEFINICIONES[p][0] for p in dict.fromkeys(pids.RAPIDOS + pids.LENTOS + pids.MUY_LENTOS)
                   if p in self.elm.soportados]
-        return claves + ["bateria", "consumo_lh", "consumo_l100", "gps_velocidad"]
+        return claves + ["bateria", "consumo_lh", "consumo_l100"] + list(GPS_CLAVES)
 
     def _empezar(self, prueba="libre"):
         if not self.elm:
@@ -313,10 +343,10 @@ class Lector(threading.Thread):
             return 1.0
         return self.ajustes.get("correccion_velocidad", 1.0)
 
-    def poner_gps(self, v, precision=None):
-        """Velocidad del GPS del móvil (página /gps), para comparar con la del coche."""
+    def poner_gps(self, v, precision=None, lat=None, lon=None, alt=None, precision_alt=None):
+        """GPS del móvil: velocidad (para comparar con la del coche), posición y altura (para ver el trayecto y las cuestas)."""
         with self.lock:
-            self.gps = {"v": round(v, 1), "precision": precision, "t": time.time()}
+            self.gps = {"t": time.time(), **gps_valores(v, precision, lat, lon, alt, precision_alt)}
 
     def _coche_callado(self):
         """Contacto quitado o centralita dormida: no hay respuestas. Reintenta despertarla cada pocos segundos."""
@@ -362,10 +392,12 @@ class Lector(threading.Thread):
         with self.lock:
             self.valores.update(diagnostico.derivados(self.valores, self.ajustes.get("factor_consumo", 1.0)))
             g = getattr(self, "gps", None)
-            if g and time.time() - g["t"] < 4:
-                self.valores["gps_velocidad"] = g["v"]
-            else:
-                self.valores.pop("gps_velocidad", None)
+            fresco = g and time.time() - g["t"] < 4
+            for k in GPS_CLAVES:
+                if fresco and g.get(k) is not None:
+                    self.valores[k] = g[k]
+                else:
+                    self.valores.pop(k, None)
             if self.grabacion:
                 self.grabacion.fila(self.valores)
 
@@ -496,7 +528,7 @@ def detalle_sesion(carpeta):
     if filas and (not muestra or muestra[-1] is not filas[-1]):
         muestra.append(filas[-1])
     claves = ["t", "rpm", "velocidad", "temp_motor", "map", "stft", "ltft", "sonda1", "sonda2",
-              "avance", "bateria", "consumo_lh", "consumo_l100", "acelerador", "carga", "temp_admision", "sistema_combustible", "gps_velocidad"]
+              "avance", "bateria", "consumo_lh", "consumo_l100", "acelerador", "carga", "temp_admision", "sistema_combustible", "gps_velocidad", "gps_alt"]
     series = {k: [f.get(k) for f in muestra] for k in claves if any(f.get(k) is not None for f in muestra)}
     return {"carpeta": c.name, "sesion": sesion, "resumen": resumen, "series": series, "total_filas": len(filas)}
 
@@ -786,14 +818,12 @@ class Manejador(BaseHTTPRequestHandler):
             "/api/nota": ("nota", {"texto": str(cuerpo.get("texto", ""))[:300] or "Marca"}),
         }
         if ruta == "/api/gps":
-            try:
-                v = float(cuerpo["v"])
-                prec = float(cuerpo.get("precision")) if cuerpo.get("precision") is not None else None
-            except (KeyError, TypeError, ValueError):
-                return self._json({"ok": False, "error": "Falta la velocidad"}, 400)
-            if not 0 <= v < 250:
-                return self._json({"ok": False, "error": "Velocidad rara"}, 400)
-            LECTOR.poner_gps(v, prec)
+            g = gps_valores(cuerpo.get("v"), cuerpo.get("precision"), cuerpo.get("lat"), cuerpo.get("lon"),
+                            cuerpo.get("alt"), cuerpo.get("precision_alt"))
+            if not any(g.get(k) is not None for k in ("gps_velocidad", "gps_lat")):
+                return self._json({"ok": False, "error": "Ni velocidad ni posición válidas"}, 400)
+            LECTOR.poner_gps(cuerpo.get("v"), cuerpo.get("precision"), cuerpo.get("lat"), cuerpo.get("lon"),
+                             cuerpo.get("alt"), cuerpo.get("precision_alt"))
             return self._json({"ok": True})
         if ruta == "/api/borrar":
             if cuerpo.get("confirmo") is not True:

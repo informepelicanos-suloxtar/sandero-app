@@ -1,5 +1,5 @@
 /* Guarda la app entera en el móvil para que funcione sin internet (en el coche). La genera preparar_movil.sh. */
-const CACHE = "mi-sandero-0eb4a1178f";
+const CACHE = "mi-sandero-778b0e40d0";
 const ARCHIVOS = ["./", "index.html", "motor.js", "manifest.webmanifest", "icono-192.png", "icono-512.png", "py/ajustes.json", "py/analisis.py", "py/averias.py", "py/diagnostico.py", "py/elm327.py", "py/mantenimiento.json", "py/movil_py.py", "py/pids.py", "py/servidor.py", "py/simulador.py", "pyodide/pyodide-lock.json", "pyodide/pyodide.asm.js", "pyodide/pyodide.asm.wasm", "pyodide/pyodide.js", "pyodide/python_stdlib.zip"];
 
 self.addEventListener("install", e => {

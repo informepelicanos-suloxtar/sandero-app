@@ -472,7 +472,7 @@ label.marca{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size
 <script>if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});</script>
 <script>
 let SISTEMAS = [], NOMBRES_SIS = {};
-const SIN_GRAFICA = new Set(["consumo_l100","sistema_combustible","tiempo_motor","km_desde_borrado","calentamientos_borrado","km_con_testigo","min_desde_borrado","min_con_testigo","presion_atm"]);
+const SIN_GRAFICA = new Set(["consumo_l100","sistema_combustible","tiempo_motor","km_desde_borrado","calentamientos_borrado","km_con_testigo","min_desde_borrado","min_con_testigo","presion_atm","gps_lat","gps_lon","gps_precision"]);
 let DEF = {}, ultimo = null, historia = {}, tarjetasHechas = false, sesionesVistas = "";
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -736,10 +736,11 @@ function iniciarGpsMovil(){
   try {
     gpsWatchId = navigator.geolocation.watchPosition(p => {
       const c = p.coords;
-      if (c.speed == null || c.speed < 0 || c.accuracy > 30) return;
+      if (c.accuracy > 30) return;  // señal mala (garaje, túnel): ni velocidad ni posición
       if (Date.now() - ultimoEnvioGps > 400) {
         ultimoEnvioGps = Date.now();
-        api("/api/gps", {v: c.speed * 3.6, precision: c.accuracy}).catch(() => {});
+        api("/api/gps", {v: (c.speed == null || c.speed < 0) ? null : c.speed * 3.6, precision: c.accuracy,
+                         lat: c.latitude, lon: c.longitude, alt: c.altitude, precision_alt: c.altitudeAccuracy}).catch(() => {});
       }
     }, () => {}, {enableHighAccuracy: true, maximumAge: 0, timeout: 15000});
   } catch (e) {}
@@ -1132,6 +1133,7 @@ const DEFINICION_GRAFICAS = [
   {id:"g3", titulo:"Correcciones de mezcla", series:[["ltft","Aprendida (LTFT)","%","#8b5cf6",1],["stft","Rápida (STFT)","%","#06b6d4",1]]},
   {id:"g4", titulo:"Sondas lambda (delantera y trasera)", series:[["sonda1","Sonda 1 (del.)","V","#2563eb",2],["sonda2","Sonda 2 (tras.)","V","#f97316",2]], fijo:[0,1]},
   {id:"g5", titulo:"Velocidad: centralita y GPS del móvil", series:[["velocidad","Centralita","km/h","#10b981",0],["gps_velocidad","GPS","km/h","#e11d48",0]], comun:true, si:"gps_velocidad"},
+  {id:"g6", titulo:"Altura (GPS del móvil) y velocidad", series:[["gps_alt","Altura","m","#a16207",0],["velocidad","Velocidad","km/h","#10b981",0]], si:"gps_alt"},
 ];
 async function verGraficas(carpeta){
   const cont = $("graf-" + carpeta);

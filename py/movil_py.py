@@ -192,9 +192,10 @@ def get(ruta):
 def post(ruta, cuerpo_json):
     cuerpo = json.loads(cuerpo_json or "{}")
     if ruta == "/api/gps":
-        v = cuerpo.get("v")
-        if v is not None and 0 <= float(v) < 250:
-            L.poner_gps(float(v), cuerpo.get("precision"))
+        args = [cuerpo.get(k) for k in ("v", "precision", "lat", "lon", "alt", "precision_alt")]
+        g = servidor.gps_valores(*args)
+        if g["gps_velocidad"] is not None or g["gps_lat"] is not None:
+            L.poner_gps(*args)
             return _j({"ok": True})
         return _j({"ok": False})
     if ruta == "/api/ajustes":

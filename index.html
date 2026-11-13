@@ -791,6 +791,21 @@ function lineaGps(f){
   return `<i class="gps">📍 GPS ${Math.round(g)} km/h${dif}</i>`;
 }
 
+// Mezcla en tres casillas: lo que corrige ahora (STFT, empieza en 0 al arrancar), lo aprendido (LTFT, el coche lo
+// guarda de viajes anteriores, por eso al arrancar ya sale) y el total. Sin sonda (lazo abierto) la STFT no corrige.
+function cajasMezcla(v){
+  const st = v("stft"), lt = v("ltft"), sis = v("sistema_combustible");
+  const pc = x => x == null ? "–" : (x > 0 ? "+" : "") + String(Math.round(x * 10) / 10).replace(".", ",") + " %";
+  const nivel = x => x == null ? "gris" : Math.abs(x) > 20 ? "rojo" : Math.abs(x) > 10 ? "amarillo" : "verde";
+  const sinSonda = sis != null && sis !== 2 && sis !== 16;
+  const tot = (st != null && lt != null) ? st + lt : null;
+  return [
+    [sinSonda ? "Sin sonda" : pc(st), sinSonda ? "Corrige ahora: motor frío, a fondo o soltando gas" : "Corrige ahora (en directo)", sinSonda || st == null ? "gris" : nivel(st)],
+    [pc(lt), "Aprendida (la guarda de otros viajes)", nivel(lt)],
+    [pc(tot), "Mezcla total", nivel(tot)],
+  ];
+}
+
 function pintarCuadroVivo(f){
   const el = $("cuadroVivo");
   if (!el) return;
@@ -799,9 +814,6 @@ function pintarCuadroVivo(f){
   if (!hay) return;
   const v = k => f.valores[k]?.v, est = k => f.valores[k]?.estado || "gris";
   const rpm = v("rpm"), vel = v("velocidad"), temp = v("temp_motor"), bat = v("bateria");
-  const st = v("stft"), lt = v("ltft");
-  const corr = (st != null && lt != null) ? Math.round((st + lt) * 10) / 10 : lt;
-  const corrEst = corr == null ? "gris" : Math.abs(corr) > 20 ? "rojo" : Math.abs(corr) > 10 ? "amarillo" : "verde";
   const gasto = (vel || 0) >= 5 && v("consumo_l100") != null
     ? [fmt("consumo_l100", v("consumo_l100")) + " L/100", "Gasto ahora"]
     : [v("consumo_lh") != null ? fmt("consumo_lh", v("consumo_lh")) + " L/h" : "–", "Gasto por hora"];
@@ -809,7 +821,7 @@ function pintarCuadroVivo(f){
     [rpm != null ? (rpm <= 300 ? "Parado" : fmt("rpm", rpm) + " rpm") : "–", "Revoluciones", est("rpm")],
     [vel != null ? fmt("velocidad", vel) + " km/h" : "–", "Velocidad", est("velocidad")],
     [temp != null ? fmt("temp_motor", temp) + " °C" : "–", "Temp. motor", est("temp_motor")],
-    [corr != null ? (corr > 0 ? "+" : "") + String(corr).replace(".",",") + " %" : "–", "Mezcla (LTFT+STFT)", corrEst],
+    ...cajasMezcla(v),
     [bat != null ? fmt("bateria", bat) + " V" : "–", "Batería", est("bateria")],
     [gasto[0], gasto[1], est("consumo_lh")],
   ];
@@ -994,8 +1006,6 @@ function pintarVivoPrueba(f){
 
   const v = k => f.valores[k]?.v;
   const rpm = v("rpm"), temp = v("temp_motor"), vel = v("velocidad"), map = v("map"), bat = v("bateria");
-  const stft = v("stft"), ltft = v("ltft");
-  const corr = (stft != null && ltft != null) ? Math.round((stft + ltft) * 10) / 10 : null;
 
   let guia = "Grabando todos los sensores en directo. El número de lecturas guardadas sube cada segundo.";
   if (g.prueba === "ralenti_caliente") {
@@ -1021,7 +1031,7 @@ function pintarVivoPrueba(f){
     [rpm != null ? fmt("rpm", rpm) + " rpm" : "–", "Revoluciones"],
     [temp != null ? fmt("temp_motor", temp) + " °C" : "–", "Temp. motor"],
     [vel != null ? fmt("velocidad", vel) + " km/h" : "–", "Velocidad"],
-    [corr != null ? (corr > 0 ? "+" : "") + String(corr).replace(".",",") + " %" : "–", "Mezcla (LTFT+STFT)"],
+    ...cajasMezcla(v).map(([val, etq]) => [val, etq]),
     [map != null ? fmt("map", map) + " kPa" : "–", "Vacío (MAP)"],
     [bat != null ? fmt("bateria", bat) + " V" : "–", "Batería"],
   ];

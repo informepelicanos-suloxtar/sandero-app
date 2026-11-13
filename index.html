@@ -435,6 +435,7 @@ label.marca{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size
       </div>
       <div class="barra-prog"><div id="mantBarra" style="width:0%"></div></div>
       <p class="mensaje-con" id="textoMantenimiento" style="margin-top:0">Marca cada tarea al hacerla o pulsa en la etiqueta para alternar <b>Pendiente ↔ Comprado ✅</b>. Se guarda en <code>~/coche-obd/mantenimiento.json</code>.</p>
+      <div class="aviso" id="mantAviso" hidden style="margin:0 0 10px"></div>
       <div id="mantPendientes" class="vacio">Cargando…</div>
       <div class="fila" style="margin-top:10px">
         <input type="text" id="nuevaTareaTxt" placeholder="Añadir tarea pendiente (p. ej. Revisar presión ruedas)" style="flex:1">
@@ -1279,6 +1280,15 @@ function pintarMantenimiento(m){
     $("mantResumen").textContent = `${hechas} de ${lista.length} hechas` + (compradas ? ` · ${compradas} compradas` : "");
   }
   if ($("mantBarra")) $("mantBarra").style.width = (lista.length ? Math.round(hechas / lista.length * 100) : 0) + "%";
+  const n = m._nube, vacio = !lista.length && !(m.historial||[]).length;
+  if ($("mantAviso")) {
+    $("mantAviso").hidden = !(n && vacio);
+    if (n && vacio) $("mantAviso").innerHTML = !n.llave
+      ? `<b>En este móvil todavía no está el mantenimiento.</b> Está guardado en GitHub (el repositorio privado del coche) y cada móvil lo baja con la llave de GitHub. Ponla en la pestaña <b>💬 Claude</b> y vuelve aquí: aparecerá todo. Hasta entonces, mejor no añadir tareas aquí.`
+      : !n.internet ? `<b>Sin internet:</b> en cuanto haya conexión se baja el mantenimiento de GitHub.`
+      : n.error ? `<b>No pude traer el mantenimiento de GitHub:</b> ${esc(n.error)}` : "";
+    if (n && vacio && !$("mantAviso").innerHTML) $("mantAviso").hidden = true;
+  }
   p.className = "";
   p.innerHTML = lista.map((x, i) => `
     <div class="marca" style="padding:8px 10px;border-radius:10px;background:var(--panel2);margin:6px 0;align-items:center">

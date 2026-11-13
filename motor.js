@@ -10,7 +10,7 @@
  */
 (() => {
 "use strict";
-const VERSION = "d6a49a0d0f";
+const VERSION = "e964883b46";
 const PY = ["pids.py", "averias.py", "diagnostico.py", "analisis.py", "rutas.py", "servidor.py", "elm327.py", "simulador.py", "movil_py.py"];
 const espera = ms => new Promise(r => setTimeout(r, ms));
 const h2 = n => n.toString(16).toUpperCase().padStart(2, "0");
@@ -664,7 +664,18 @@ function estadoNube() {
 // Lo que se marca en el móvil se sube enseguida; lo que cambie en el repositorio (Claude, el Mac) se baja al abrir.
 const MANT_F = "/coche/mantenimiento.json", MANT_EST = "/coche/mant_nube.json";
 const mantVacio = m => !m || !((m.pendientes_itv_dic2026 || []).length + (m.historial || []).length);
-let mantCambios = 0, mantUltima = 0, mantEnMarcha = null;
+let mantCambios = 0, mantUltima = 0, mantEnMarcha = null, mantError = "";
+
+function mantJuntar(remoto, local) {  // lo del repositorio y, detrás, lo que solo estaba en este móvil
+  const clave = x => String(x && x.tarea || "").trim().toLowerCase();
+  const out = { ...local, ...remoto };
+  const pend = [...(remoto.pendientes_itv_dic2026 || [])], vistas = new Set(pend.map(clave));
+  for (const x of local.pendientes_itv_dic2026 || []) if (!vistas.has(clave(x))) { pend.push(x); vistas.add(clave(x)); }
+  const hist = [...(remoto.historial || [])], firmas = new Set(hist.map(e => JSON.stringify(e)));
+  for (const e of local.historial || []) if (!firmas.has(JSON.stringify(e))) hist.push(e);
+  out.pendientes_itv_dic2026 = pend; out.historial = hist;
+  return out;
+}
 
 function mantenimientoTocado() {  // se ha marcado algo en el móvil: queda pendiente de subir
   mantCambios++;
@@ -683,10 +694,19 @@ async function sincronizarMantenimiento(forzar) {
         const aj = await gh("/contents/ajustes.json?ref=main", { crudo: true, vacio404: true });
         if (aj) { const nuevos = { ...JSON.parse(aj), ...leerJSON("/coche/ajustes.json", {}) }; escribirJSON("/coche/ajustes.json", nuevos); M.recargar_ajustes(); }
       }
-      const est = leerJSON(MANT_EST, {}), local = leerJSON(MANT_F, null);
+      const est = leerJSON(MANT_EST, {});
+      let local = leerJSON(MANT_F, null);
       const texto = await gh("/contents/mantenimiento.json?ref=main", { crudo: true, vacio404: true });
       let remoto = null; try { remoto = texto ? JSON.parse(texto) : null; } catch {}
-      const igual = !!remoto && JSON.stringify(remoto) === JSON.stringify(local);
+      let igual = !!remoto && JSON.stringify(remoto) === JSON.stringify(local);
+      if (!igual && !est.visto && !mantVacio(local) && !mantVacio(remoto)) {
+        // primera vez con llave en un móvil que ya tenía algo apuntado: se junta con lo del repositorio (sin perder nada)
+        const junto = mantJuntar(remoto, local);
+        py.FS.writeFile(MANT_F, JSON.stringify(junto, null, 2));
+        if (JSON.stringify(junto) === JSON.stringify(remoto)) igual = true;
+        else { escribirJSON(MANT_EST, { ...est, pendiente: true }); est.pendiente = true; }
+        local = junto;
+      }
       // se sube lo del móvil si hay algo marcado sin subir (o es la primera vez y el móvil ya tenía lo suyo)
       if (!igual && !mantVacio(local) && (est.pendiente || !est.visto)) {
         await commitArchivos([["mantenimiento.json", new TextEncoder().encode(JSON.stringify(local, null, 2) + "\n")],
@@ -695,9 +715,9 @@ async function sincronizarMantenimiento(forzar) {
         py.FS.writeFile(MANT_F, JSON.stringify(remoto, null, 2));
       }
       if (cambios === mantCambios) escribirJSON(MANT_EST, { visto: true, pendiente: false });
-      mantUltima = Date.now();
+      mantUltima = Date.now(); mantError = "";
       guardar();
-    } catch (e) { console.error("mantenimiento", e); }
+    } catch (e) { console.error("mantenimiento", e); mantError = e.message || String(e); }
     return cambios !== mantCambios;
   })().finally(() => { mantEnMarcha = null; });
   const otra = await mantEnMarcha;
@@ -794,6 +814,8 @@ async function api(ruta, cuerpo) {
     await conTiempo(Promise.resolve(sincronizarMantenimiento()), 6000, "tarda").catch(() => {});
   if (cuerpo === undefined && ruta === "/api/rutas")  // los nombres de las rutas, por si se cambiaron desde el Mac
     await conTiempo(Promise.resolve(sincronizarRutas()), 5000, "tarda").catch(() => {});
+  if (cuerpo === undefined && ruta === "/api/mantenimiento")  // la página explica por qué sale vacío (sin llave, sin internet…)
+    return { ...JSON.parse(M.get(ruta)), _nube: { llave: !!nube().token, internet: navigator.onLine, error: mantError } };
   if (cuerpo === undefined) return JSON.parse(M.get(ruta));
   const accion = (n, a) => { const r = JSON.parse(M.accion(n, JSON.stringify(a))); guardar(); return r; };
   switch (ruta) {

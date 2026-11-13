@@ -197,9 +197,6 @@ label.marca{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size
 .tabla-ruta td:last-child{white-space:nowrap}
 .motivos{margin:6px 0;padding-left:20px}.motivos li{margin:6px 0}
 .ok-ruta{background:var(--verde-bg);color:var(--verde);padding:10px 12px;border-radius:10px;font-weight:600}
-.version-nueva{position:fixed;left:12px;right:12px;bottom:12px;z-index:40;display:flex;gap:10px;align-items:center;justify-content:space-between;
-  background:var(--acento);color:var(--acento-txt);padding:12px 14px;border-radius:12px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.25)}
-.version-nueva button{border:0;border-radius:8px;padding:8px 12px;background:#fff;color:#1d4ed8;font-weight:700}
 @media (max-width:560px){
   nav{flex-wrap:wrap;overflow-x:visible}
   nav button{flex:1 0 auto;padding:8px 10px;font-size:15px}
@@ -500,11 +497,9 @@ label.marca{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size
 </div>
 
 <div class="tostada" id="tostada"></div>
-<div class="version-nueva" id="versionNueva" hidden><span>Hay una versión nueva de la app.</span>
-  <button onclick="actualizarApp()">Actualizar</button></div>
 
 <script src="motor.js"></script>
-<script>if("serviceWorker"in navigator){const habia=!!navigator.serviceWorker.controller;navigator.serviceWorker.register("sw.js").then(r=>r.update()).catch(()=>{});navigator.serviceWorker.addEventListener("controllerchange",()=>{if(habia&&window.hayVersionNueva)window.hayVersionNueva();});}</script>
+<script>if("serviceWorker"in navigator){navigator.serviceWorker.register("sw.js").then(r=>r.update()).catch(()=>{});}</script>
 <script>
 let SISTEMAS = [], NOMBRES_SIS = {};
 const SIN_GRAFICA = new Set(["consumo_l100","sistema_combustible","tiempo_motor","km_desde_borrado","calentamientos_borrado","km_con_testigo","min_desde_borrado","min_con_testigo","presion_atm","gps_lat","gps_lon","gps_precision"]);
@@ -1500,14 +1495,6 @@ function irARuta(carpeta){
   const abrirla = () => { const r = (rutasCache || []).find(x => x.viajes.some(v => v.carpeta === carpeta)); if (r) verRuta(r.id, carpeta); };
   if (rutasCache) abrirla(); else setTimeout(abrirla, 800);
   cargarRutas().then(abrirla);
-}
-
-// La app del móvil avisa cuando ya ha bajado una versión nueva (preparar_movil.sh). No se recarga sola por si está grabando.
-window.hayVersionNueva = () => { $("versionNueva").hidden = false; };
-function actualizarApp(){
-  const grabando = !!ultimo?.grabacion?.activa;
-  if (grabando && !confirm("Está grabando: al actualizar se corta la grabación (se guarda lo que lleva). ¿Actualizar ya?")) return;
-  location.reload();
 }
 
 function escuchar(){

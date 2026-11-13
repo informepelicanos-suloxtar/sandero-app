@@ -115,7 +115,17 @@ def sistema_de(codigo):
 
 # ------------------------------------------------------------------ diagnóstico
 
-def diagnosticar(filas, averias=None, consumo_real=None, factor_consumo=None, corr_velocidad=1.0):
+# La corrección de mezcla de este coche va a saltos (~4,7 %) y cambia mucho de un viaje a otro (+7,5…+21,8 con el
+# mismo coche y las mismas piezas), así que el veredicto se da con la media de varios viajes, no con uno solo.
+MEZCLA_MIN_VALIDO = 8     # minutos con el motor caliente y el lazo cerrado para que un viaje cuente
+MEZCLA_VIAJES = 5         # cuántos viajes (este incluido) entran en la media
+MEZCLA_MIN_VIAJES = 3     # por debajo de esto el veredicto es solo orientativo
+
+
+def diagnosticar(filas, averias=None, consumo_real=None, factor_consumo=None, corr_velocidad=1.0,
+                 historial_mezcla=None):
+    """historial_mezcla: viajes anteriores, del más viejo al más nuevo, como {"carpeta", "media", "min"}
+    (estadisticas.mezcla_caliente de cada resumen.json). Sirve para dar la mezcla con la media de varios viajes."""
     hallazgos, stats = [], {}
 
     def h(sistema, nivel, titulo, detalle, gasto=False):
@@ -302,19 +312,60 @@ def diagnosticar(filas, averias=None, consumo_real=None, factor_consumo=None, co
         stats["correccion_ralenti"] = round(tot_r, 1) if tot_r is not None else None
         stats["correccion_conduciendo"] = round(tot_c, 1) if tot_c is not None else None
         stats["ltft"] = _est(lt)
-        if tot is not None:
-            if tot < -15:
-                h("gasolina", "rojo" if tot < -22 else "amarillo", "Mezcla rica: le sobra gasolina",
-                  f"El coche quita un {_n(-tot, 0)} % de gasolina de media para compensar. Lo que causa esto: un inyector "
-                  "que gotea, el sensor MAP o el de temperatura mintiendo, o el canister. Gasta más.", gasto=True)
-            elif tot > 15:
-                h("gasolina", "rojo" if tot > 22 else "amarillo", "Mezcla pobre: le falta gasolina o le sobra aire",
-                  f"El coche añade un {_n(tot, 0)} % de gasolina de media.", gasto=True)
-            elif abs(tot) > 10:
-                h("gasolina", "amarillo", "La mezcla necesita bastante corrección",
-                  f"Corrección media {'+' if tot > 0 else ''}{_n(tot, 0)} %. Aceptable, pero vigílalo.")
+        # con el motor caliente y el lazo cerrado: el dato que se compara entre viajes
+        cal_m, t_cal = [], 0.0
+        for a, b in zip(filas, filas[1:]):
+            if en_marcha(a) and lazo(a) and (a.get("temp_motor") or 0) >= 78 \
+                    and a.get("ltft") is not None and a.get("stft") is not None:
+                cal_m.append(a["ltft"] + a["stft"])
+                t_cal += min(b["t"] - a["t"], 5)
+        este = None
+        if cal_m:
+            este = {"media": round(statistics.fmean(cal_m), 1), "min": round(t_cal / 60, 1)}
+            stats["mezcla_caliente"] = este
+        valido = bool(este and este["min"] >= MEZCLA_MIN_VALIDO)
+        prev = [x for x in (historial_mezcla or []) if x.get("media") is not None
+                and (x.get("min") or 0) >= MEZCLA_MIN_VALIDO]
+        viajes = (prev + [este])[-MEZCLA_VIAJES:] if valido else prev[-MEZCLA_VIAJES:]
+        firmar = lambda x: f"{'+' if x > 0 else ''}{_n(x, 1)}"
+        minutos = lambda e: "menos de 1 min" if not e or e["min"] < 1 else f"{_n(e['min'], 0)} min"
+        if viajes:
+            med = statistics.fmean(x["media"] for x in viajes)
+            lo, hi = min(x["media"] for x in viajes), max(x["media"] for x in viajes)
+            stats["mezcla_media_viajes"] = {"media": round(med, 1), "viajes": len(viajes), "min": lo, "max": hi}
+            if len(viajes) == 1 and valido:
+                base = (f"En este viaje, con el motor caliente: {firmar(med)} %. Es un solo viaje: este dato va a saltos y "
+                        "cambia mucho de un día a otro, así que es orientativo hasta tener al menos "
+                        f"{MEZCLA_MIN_VIAJES} viajes de más de {MEZCLA_MIN_VALIDO} min.")
             else:
-                h("gasolina", "verde", "Mezcla correcta", f"Corrección media {'+' if tot > 0 else ''}{_n(tot)} %.")
+                base = (f"Media de los últimos {len(viajes)} viajes con el motor caliente: {firmar(med)} % "
+                        f"(de {firmar(lo)} a {firmar(hi)}). " if len(viajes) > 1 else
+                        f"El último viaje que sirve, con el motor caliente: {firmar(med)} %. ")
+                base += (f"Este viaje: {firmar(este['media'])} %." if valido else
+                         f"Este viaje no cuenta: solo {minutos(este)} con el motor caliente "
+                         f"(hacen falta {MEZCLA_MIN_VALIDO}).")
+                if len(viajes) < MEZCLA_MIN_VIAJES:
+                    base += f" Aún orientativo: faltan viajes hasta {MEZCLA_MIN_VIAJES}."
+            tot_v = med
+        else:
+            # sin viajes que sirvan: el dato de este viaje, avisando de que no vale para juzgar
+            tot_v = None
+            if tot is not None:
+                h("gasolina", "gris", "Mezcla: viaje corto, no sirve para juzgar",
+                  f"Corrección {firmar(tot)} %, pero solo con {minutos(este)} con el motor "
+                  f"caliente (hacen falta {MEZCLA_MIN_VALIDO}). Este dato va a saltos y baila mucho en viajes cortos.")
+        if tot_v is not None:
+            if tot_v < -15:
+                h("gasolina", "rojo" if tot_v < -22 else "amarillo", "Mezcla rica: le sobra gasolina",
+                  base + " El coche quita gasolina para compensar. Lo que causa esto: un inyector "
+                  "que gotea, el sensor MAP o el de temperatura mintiendo, o el canister. Gasta más.", gasto=True)
+            elif tot_v > 15:
+                h("gasolina", "rojo" if tot_v > 22 else "amarillo", "Mezcla pobre: le falta gasolina o le sobra aire",
+                  base + " El coche añade gasolina para compensar.", gasto=True)
+            elif abs(tot_v) > 10:
+                h("gasolina", "amarillo", "La mezcla necesita bastante corrección", base + " Aceptable, pero vigílalo.")
+            else:
+                h("gasolina", "verde", "Mezcla correcta", base)
         # cruzar ralentí con marcha: dónde está el problema
         if tot_r is not None and tot_c is not None and n_r >= 15 and n_c > 30:
             if tot_r > 10 and tot_c < tot_r - 7 and n_r >= 100:

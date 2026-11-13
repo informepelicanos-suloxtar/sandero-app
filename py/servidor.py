@@ -403,6 +403,12 @@ class Lector(threading.Thread):
             if self.grabacion:
                 self.grabacion.fila(self.valores)
 
+    def _historial_mezcla(self):
+        g = self.grabacion
+        if not g or "Simulador" in ((g.sesion.get("lector") or {}).get("destino") or ""):
+            return []
+        return analisis.historial_mezcla(antes_de=g.carpeta.name)
+
     def analizar_en_directo(self):
         """Hilo aparte: cada 4 s cruza todos los datos grabados desde que conectaste."""
         while True:
@@ -412,7 +418,7 @@ class Lector(threading.Thread):
                     filas = list(self.grabacion.memoria) if self.grabacion else []
                     av = self.averias if self.elm else None
                 d = diagnostico.diagnosticar(filas, av, self.ajustes.get("consumo_real"), self.ajustes.get("factor_consumo"),
-                                             corr_velocidad=self._corr_velocidad())
+                                             corr_velocidad=self._corr_velocidad(), historial_mezcla=self._historial_mezcla())
                 d["filas"] = len(filas)
                 self.diagnostico = d
             except Exception:

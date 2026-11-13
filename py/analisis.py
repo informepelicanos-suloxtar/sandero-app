@@ -54,6 +54,36 @@ def cargar(carpeta):
     return filas, sesion
 
 
+_cache_mezcla = {}
+
+
+def historial_mezcla(antes_de=None):
+    """Mezcla con el motor caliente de las grabaciones reales anteriores a «antes_de» (nombre de carpeta), de la más
+    vieja a la más nueva. Se lee de cada resumen.json y se guarda en memoria hasta que cambia la lista de carpetas."""
+    try:
+        nombres = sorted(p.name for p in REGISTROS.iterdir() if (p / "resumen.json").exists())
+    except OSError:
+        return []
+    out = []
+    for n in nombres:
+        if antes_de and n >= antes_de:
+            break
+        c = REGISTROS / n
+        clave = (n, (c / "resumen.json").stat().st_mtime)
+        if clave not in _cache_mezcla:
+            try:
+                r = json.loads((c / "resumen.json").read_text())
+                ses = json.loads((c / "sesion.json").read_text()) if (c / "sesion.json").exists() else {}
+                sim = "Simulador" in ((ses.get("lector") or {}).get("destino") or "")
+                m = (r.get("estadisticas") or {}).get("mezcla_caliente")
+                _cache_mezcla[clave] = None if sim or not m else {"carpeta": n, **m}
+            except (OSError, ValueError):
+                _cache_mezcla[clave] = None
+        if _cache_mezcla[clave]:
+            out.append(_cache_mezcla[clave])
+    return out
+
+
 def analizar(carpeta):
     carpeta = Path(carpeta)
     filas, sesion = cargar(carpeta)
@@ -61,7 +91,8 @@ def analizar(carpeta):
     es_sim = "Simulador" in ((sesion.get("lector") or {}).get("destino") or "")
     corr_vel = 1.0 if es_sim else (aj.get("correccion_velocidad") or sesion.get("correccion_velocidad") or 1.0)
     d = diagnostico.diagnosticar(filas, sesion.get("averias"), aj.get("consumo_real"), aj.get("factor_consumo"),
-                                 corr_velocidad=corr_vel)
+                                 corr_velocidad=corr_vel,
+                                 historial_mezcla=[] if es_sim else historial_mezcla(antes_de=carpeta.name))
     resumen = {"carpeta": carpeta.name, "prueba": sesion.get("prueba"), "inicio": sesion.get("inicio"),
                "filas": len(filas), "notas": sesion.get("notas", []), **d}
     (carpeta / "resumen.json").write_text(json.dumps(resumen, ensure_ascii=False, indent=2))

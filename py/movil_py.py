@@ -167,7 +167,8 @@ def diagnostico_en_directo():
     t = time.time()
     filas = list(L.grabacion.memoria) if L.grabacion else []
     d = diagnostico.diagnosticar(filas, L.averias if L.elm else None, L.ajustes.get("consumo_real"),
-                                 L.ajustes.get("factor_consumo"), corr_velocidad=L._corr_velocidad())
+                                 L.ajustes.get("factor_consumo"), corr_velocidad=L._corr_velocidad(),
+                                 historial_mezcla=L._historial_mezcla())
     d["filas"] = len(filas)
     L.diagnostico = d
     return round((time.time() - t) * 1000)

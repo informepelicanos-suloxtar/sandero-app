@@ -10,7 +10,7 @@
  */
 (() => {
 "use strict";
-const VERSION = "e964883b46";
+const VERSION = "492aaf230b";
 const PY = ["pids.py", "averias.py", "diagnostico.py", "analisis.py", "rutas.py", "servidor.py", "elm327.py", "simulador.py", "movil_py.py"];
 const espera = ms => new Promise(r => setTimeout(r, ms));
 const h2 = n => n.toString(16).toUpperCase().padStart(2, "0");

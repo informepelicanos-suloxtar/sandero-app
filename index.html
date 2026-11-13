@@ -621,7 +621,8 @@ function pintarNube(n){  // solo en la app del móvil: subida de grabaciones a G
         ${n.pendientes ? `<span class="nube-mal">${n.pendientes} sin subir</span>` : `<span class="nube-ok">Todo subido ✓</span>`}
         · ${n.subidas} subidas${n.ultima ? " · última " + esc(n.ultima) : ""}${n.error ? `<br><span class="nube-mal">${esc(n.error)}</span>` : ""}</div></div>
       <div class="fila" style="gap:6px"><button class="boton chico" onclick="subirAhora()">⬆ Subir ahora</button>
-        <button class="boton chico" onclick="quitarLlave()">Quitar llave</button></div></div>`;
+        <button class="boton chico" onclick="quitarLlave()">Quitar llave</button></div></div>
+    <div class="mensaje-con" style="margin-top:6px;font-size:13px">Versión de la app: <b>${esc(window.MOTOR?.version || "")}</b></div>`;
 }
 async function guardarLlave(){
   const t = $("inpLlave").value.trim();

@@ -10,7 +10,7 @@
  */
 (() => {
 "use strict";
-const VERSION = "2e1f69a953";
+const VERSION = "7ee900de69";
 const PY = ["pids.py", "averias.py", "diagnostico.py", "analisis.py", "rutas.py", "servidor.py", "elm327.py", "simulador.py", "movil_py.py"];
 const espera = ms => new Promise(r => setTimeout(r, ms));
 const h2 = n => n.toString(16).toUpperCase().padStart(2, "0");
@@ -442,7 +442,7 @@ async function conectar(destino) {
     if (Lec.elm) { const ble = !Lec.demo; await soltar("Reconectando"); if (ble) await espera(3000); }
     M.estado_conexion("conectando", demo ? "Conectando con el coche de prueba…" : `Conectando con ${dispositivo.name || "el lector"} por Bluetooth…`);
     const t = demo ? new TransporteSimulado() : new TransporteBLE(dispositivo);
-    await t.abrir();
+    try { await t.abrir(); } catch (e) { t.cerrar(); throw e; }  // que no quede el Bluetooth medio abierto
     M.estado_conexion("conectando", "Despertando al coche (puede tardar hasta 15 segundos)…");
     const elm = new ELM327(t);
     let info;
@@ -677,6 +677,62 @@ function mantJuntar(remoto, local) {  // lo del repositorio y, detrás, lo que s
   return out;
 }
 
+// Junta a tres bandas: «base» es lo último en lo que estaban de acuerdo el móvil y el repositorio. Gana el lado que
+// cambió algo desde entonces; si los dos cambiaron lo mismo, gana lo marcado en el móvil.
+const MANT_BASE = "/coche/mant_base.json", AJ_BASE = "/coche/ajustes_base.json";
+const mismo = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+function mantJuntar3(base, local, remoto) {
+  const clave = x => String(x && x.tarea || "").trim().toLowerCase();
+  const porClave = l => new Map((l || []).map(x => [clave(x), x]));
+  const out = {};
+  for (const k of new Set([...Object.keys(remoto), ...Object.keys(local)])) {
+    if (k === "pendientes_itv_dic2026" || k === "historial") continue;
+    const v = mismo(local[k], base[k]) ? remoto[k] : local[k];
+    if (v !== undefined) out[k] = v;
+  }
+  const B = porClave(base.pendientes_itv_dic2026), L = porClave(local.pendientes_itv_dic2026), R = porClave(remoto.pendientes_itv_dic2026);
+  const pend = [];
+  for (const c of new Set([...R.keys(), ...L.keys()])) {
+    const b = B.get(c), l = L.get(c), r = R.get(c);
+    if (b && (!l || !r)) {  // quitada en un lado: fuera, salvo que el otro lado la haya cambiado
+      const queda = l || r;
+      if (mismo(queda, b)) continue;
+      pend.push(queda); continue;
+    }
+    if (!l || !r) { pend.push(l || r); continue; }  // nueva en un solo lado
+    const x = {};
+    for (const f of new Set([...Object.keys(r), ...Object.keys(l)])) {
+      const v = (b && mismo(l[f], b[f])) || l[f] === undefined ? r[f] : l[f];
+      if (v !== undefined) x[f] = v;
+    }
+    pend.push(x);
+  }
+  const firma = e => JSON.stringify(e);
+  const fb = new Set((base.historial || []).map(firma)), fl = new Set((local.historial || []).map(firma)),
+        fr = new Set((remoto.historial || []).map(firma));
+  const hist = [];
+  for (const e of [...(remoto.historial || []), ...(local.historial || [])]) {
+    const f = firma(e);
+    if (hist.some(h => firma(h) === f)) continue;
+    const enL = fl.has(f), enR = fr.has(f), enB = fb.has(f);
+    if ((enL && enR) || !enB) hist.push(e);  // en los dos, o nueva en uno; si estaba y un lado la quitó, fuera
+  }
+  out.pendientes_itv_dic2026 = pend; out.historial = hist;
+  return out;
+}
+
+function ajustesJuntar(local, remoto, base) {  // ultimo_lector es de cada móvil; lo demás lo manda el repositorio
+  const out = { ...local };
+  const claves = new Set([...Object.keys(remoto), ...Object.keys(base || local)]);
+  for (const k of claves) {
+    if (k === "ultimo_lector") continue;
+    if (base && !mismo(local[k], base[k])) continue;  // cambiado en este móvil después de la última vez
+    if (k in remoto) out[k] = remoto[k]; else delete out[k];
+  }
+  return out;
+}
+
 function mantenimientoTocado() {  // se ha marcado algo en el móvil: queda pendiente de subir
   mantCambios++;
   escribirJSON(MANT_EST, { ...leerJSON(MANT_EST, {}), pendiente: true });
@@ -690,31 +746,35 @@ async function sincronizarMantenimiento(forzar) {
   mantEnMarcha = (async () => {
     const cambios = mantCambios;
     try {
-      if (!("correccion_velocidad" in leerJSON("/coche/ajustes.json", {}))) {  // móvil recién instalado: ajustes del repositorio
-        const aj = await gh("/contents/ajustes.json?ref=main", { crudo: true, vacio404: true });
-        if (aj) { const nuevos = { ...JSON.parse(aj), ...leerJSON("/coche/ajustes.json", {}) }; escribirJSON("/coche/ajustes.json", nuevos); M.recargar_ajustes(); }
+      // ajustes: los cambiados en el repositorio llegan también a los móviles ya instalados (sin pisar lo tocado aquí)
+      const aj = await gh("/contents/ajustes.json?ref=main", { crudo: true, vacio404: true });
+      if (aj) {
+        const remotoAj = JSON.parse(aj), localAj = leerJSON("/coche/ajustes.json", {});
+        const juntoAj = ajustesJuntar(localAj, remotoAj, leerJSON(AJ_BASE, null));
+        escribirJSON(AJ_BASE, remotoAj);
+        if (JSON.stringify(juntoAj) !== JSON.stringify(localAj)) { escribirJSON("/coche/ajustes.json", juntoAj); M.recargar_ajustes(); }
       }
-      const est = leerJSON(MANT_EST, {});
-      let local = leerJSON(MANT_F, null);
+      const est = leerJSON(MANT_EST, {}), base = leerJSON(MANT_BASE, null);
+      const local = leerJSON(MANT_F, null);
       const texto = await gh("/contents/mantenimiento.json?ref=main", { crudo: true, vacio404: true });
       let remoto = null; try { remoto = texto ? JSON.parse(texto) : null; } catch {}
-      let igual = !!remoto && JSON.stringify(remoto) === JSON.stringify(local);
-      if (!igual && !est.visto && !mantVacio(local) && !mantVacio(remoto)) {
-        // primera vez con llave en un móvil que ya tenía algo apuntado: se junta con lo del repositorio (sin perder nada)
-        const junto = mantJuntar(remoto, local);
-        py.FS.writeFile(MANT_F, JSON.stringify(junto, null, 2));
-        if (JSON.stringify(junto) === JSON.stringify(remoto)) igual = true;
-        else { escribirJSON(MANT_EST, { ...est, pendiente: true }); est.pendiente = true; }
-        local = junto;
-      }
-      // se sube lo del móvil si hay algo marcado sin subir (o es la primera vez y el móvil ya tenía lo suyo)
-      if (!igual && !mantVacio(local) && (est.pendiente || !est.visto)) {
-        await commitArchivos([["mantenimiento.json", new TextEncoder().encode(JSON.stringify(local, null, 2) + "\n")],
+      let junto;
+      if (mantVacio(remoto)) junto = local;
+      else if (mantVacio(local)) junto = remoto;
+      else if (base) junto = mantJuntar3(base, local, remoto);       // lo cambiado en cada lado desde la última vez
+      else if (!est.visto) junto = mantJuntar(remoto, local);          // primera vez con llave: se junta sin perder nada
+      else if (est.pendiente) junto = mantJuntar(local, remoto);       // sin copia de la última vez: manda lo marcado aquí
+      else junto = remoto;
+      if (cambios !== mantCambios) return true;  // se marcó algo mientras tanto: otra vuelta con eso dentro
+      if (junto && JSON.stringify(junto) !== JSON.stringify(local)) py.FS.writeFile(MANT_F, JSON.stringify(junto, null, 2));
+      if (!mantVacio(junto) && JSON.stringify(junto) !== JSON.stringify(remoto)) {
+        await commitArchivos([["mantenimiento.json", new TextEncoder().encode(JSON.stringify(junto, null, 2) + "\n")],
           ["MANTENIMIENTO.md", new TextEncoder().encode(M.mantenimiento_md())]], "Mantenimiento: cambios desde el móvil");
-      } else if (!igual && !mantVacio(remoto) && cambios === mantCambios) {
-        py.FS.writeFile(MANT_F, JSON.stringify(remoto, null, 2));
       }
-      if (cambios === mantCambios) escribirJSON(MANT_EST, { visto: true, pendiente: false });
+      if (cambios === mantCambios) {
+        if (junto) escribirJSON(MANT_BASE, junto);
+        escribirJSON(MANT_EST, { visto: true, pendiente: false });
+      }
       mantUltima = Date.now(); mantError = "";
       guardar();
     } catch (e) { console.error("mantenimiento", e); mantError = e.message || String(e); }

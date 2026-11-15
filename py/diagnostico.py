@@ -9,6 +9,7 @@ aire = presión colector × cilindrada × rendimiento volumétrico × rpm / (R �
 Gasolina = aire / 14,7 × (1 + correcciones). Error típico ±15 %; se puede ajustar con
 el factor de ajustes.json comparando con un repostaje real.
 """
+import bisect
 import re
 import statistics
 
@@ -120,6 +121,9 @@ def sistema_de(codigo):
 MEZCLA_MIN_VALIDO = 8     # minutos con el motor caliente y el lazo cerrado para que un viaje cuente
 MEZCLA_VIAJES = 5         # cuántos viajes (este incluido) entran en la media
 MEZCLA_MIN_VIAJES = 3     # por debajo de esto el veredicto es solo orientativo
+MAP_FUERTE = 80           # kPa: pisando fuerte el coche enriquece aposta y la mezcla no dice nada del motor
+ESPERA_LAZO = 20          # s tras soltar gas o pisar fuerte sin juzgar el lazo: en las grabaciones hasta el 15/11/2026
+#                           el dato del lazo (PID 0x03) se leía solo cada ~17 s y se quedaba congelado entre lectura y lectura
 
 
 def diagnosticar(filas, averias=None, consumo_real=None, factor_consumo=None, corr_velocidad=1.0,
@@ -172,6 +176,7 @@ def diagnosticar(filas, averias=None, consumo_real=None, factor_consumo=None, co
     conduciendo = lambda f: en_marcha(f) and (f.get("velocidad") or 0) > 5
     corte = lambda f: (f.get("rpm") or 0) > 1300 and (f.get("map") or 100) < 27
     lazo = lambda f: f.get("sistema_combustible") in (2, 2.0, 16, 16.0)
+    fuerte = lambda f: (f.get("map") or 0) >= MAP_FUERTE
 
     def serie(clave, cond=lambda f: True):
         return [f[clave] for f in filas if f.get(clave) is not None and cond(f)]
@@ -302,7 +307,7 @@ def diagnosticar(filas, averias=None, consumo_real=None, factor_consumo=None, co
     st = serie("stft", lambda f: en_marcha(f) and lazo(f))
     if lt and st:
         def total(cond):
-            a = [f["ltft"] + f["stft"] for f in filas if cond(f) and lazo(f)
+            a = [f["ltft"] + f["stft"] for f in filas if cond(f) and lazo(f) and not fuerte(f)
                  and f.get("ltft") is not None and f.get("stft") is not None]
             return (statistics.fmean(a), len(a)) if a else (None, 0)
         tot, _ = total(en_marcha)
@@ -315,7 +320,7 @@ def diagnosticar(filas, averias=None, consumo_real=None, factor_consumo=None, co
         # con el motor caliente y el lazo cerrado: el dato que se compara entre viajes
         cal_m, t_cal = [], 0.0
         for a, b in zip(filas, filas[1:]):
-            if en_marcha(a) and lazo(a) and (a.get("temp_motor") or 0) >= 78 \
+            if en_marcha(a) and lazo(a) and not fuerte(a) and (a.get("temp_motor") or 0) >= 78 \
                     and a.get("ltft") is not None and a.get("stft") is not None:
                 cal_m.append(a["ltft"] + a["stft"])
                 t_cal += min(b["t"] - a["t"], 5)
@@ -383,17 +388,31 @@ def diagnosticar(filas, averias=None, consumo_real=None, factor_consumo=None, co
                 h("gasolina", "verde", "Inyectores y presión de gasolina sin pistas de fallo",
                   "La mezcla está bien tanto al ralentí como en marcha.")
         # lazo abierto en caliente
-        # sin contar los cortes de gasolina al soltar gas ni los ~12 s siguientes (el coche tarda en volver a
-        # usar la sonda y este dato se lee cada varios segundos); tampoco pisando a fondo
+        # sin contar los cortes de gasolina al soltar gas, pisando fuerte, ni los ESPERA_LAZO s siguientes a una cosa
+        # u otra (el coche tarda en volver a usar la sonda y en las grabaciones viejas este dato se quedaba congelado)
         cal, t_corte = [], None
         for f in marcha:
-            if (f.get("rpm") or 0) > 1200 and (f.get("map") or 100) < 30:
+            if ((f.get("rpm") or 0) > 1200 and (f.get("map") or 100) < 30) or fuerte(f):
                 t_corte = f["t"]
             if caliente(f) and f.get("sistema_combustible") is not None and pie_fuera(f) is False \
-                    and (f.get("map") or 0) < 80 and (t_corte is None or f["t"] - t_corte > 12):
+                    and not fuerte(f) and (t_corte is None or f["t"] - t_corte > ESPERA_LAZO):
                 cal.append(f)
+        # tramos «sin sonda» en los que la sonda seguía oscilando o la corrección rápida se movía: el coche sí la
+        # estaba usando y el dato del lazo iba con retraso; no cuentan como «a ciegas»
+        a_ciegas, tramo = set(), []
+        def cerrar_tramo():
+            s1 = [f["sonda1"] for f in tramo if f.get("sonda1") is not None]
+            if _cruces(s1) < 3 and len({f.get("stft") for f in tramo if f.get("stft") is not None}) <= 2:
+                a_ciegas.update(id(f) for f in tramo)
+        for f in marcha:
+            if f.get("sistema_combustible") is not None and not lazo(f):
+                tramo.append(f)
+            elif tramo:
+                cerrar_tramo(); tramo = []
+        if tramo:
+            cerrar_tramo()
         if len(cal) > 60:
-            prop = sum(1 for f in cal if not lazo(f)) / len(cal)
+            prop = sum(1 for f in cal if id(f) in a_ciegas) / len(cal)
             stats["prop_lazo_abierto_caliente"] = round(prop, 2)
             if prop > 0.25:
                 h("gasolina", "amarillo", "Pasa mucho tiempo sin usar la sonda lambda",
@@ -609,42 +628,27 @@ def _gps_vs_coche(filas, corr, stats, h):
 
 
 def _recorrido_gps(filas, stats, h):
-    """Con la posición y la altura del GPS del móvil: km recorridos, cuánto sube y cuánto baja."""
-    import math
-    puntos = [(f["t"], f["gps_lat"], f["gps_lon"], f.get("gps_alt")) for f in filas
-              if f.get("gps_lat") is not None and f.get("gps_lon") is not None]
-    if len(puntos) < 30:
+    """Con la posición y la altura del GPS del móvil: km recorridos, cuánto sube y cuánto baja.
+    Se calcula igual que en la pestaña Rutas (rutas.py), para que el informe y Rutas den las mismas cifras."""
+    import rutas  # aquí dentro: rutas.py importa este archivo
+    n = sum(1 for f in filas if f.get("gps_lat") is not None and f.get("gps_lon") is not None)
+    if n < 30:
         return
-    km, ant = 0.0, None
-    for _t, la, lo, _a in puntos:
-        if ant and (ant[0], ant[1]) != (la, lo):
-            dla, dlo = math.radians(la - ant[0]), math.radians(lo - ant[1])
-            x = math.sin(dla / 2) ** 2 + math.cos(math.radians(la)) * math.cos(math.radians(ant[0])) * math.sin(dlo / 2) ** 2
-            d = 2 * 6371 * math.asin(math.sqrt(x))
-            if d < 0.2:  # saltos raros del GPS (más de 200 m entre dos lecturas): fuera
-                km += d
-        ant = (la, lo)
-    stats["gps_recorrido"] = {"puntos": len(puntos), "km_gps": round(km, 1)}
-    alts = [a for *_r, a in puntos if a is not None]
-    if len(alts) < 30:
+    pts = rutas.puntos(filas)
+    if len(pts) < 2:
+        return
+    km = pts[-1]["m"] / 1000
+    stats["gps_recorrido"] = {"puntos": n, "km_gps": round(km, 1)}
+    if not rutas._alisar_altura(pts):
         h("marcha", "gris", "Recorrido con GPS", f"{_n(km)} km según el GPS del móvil (sin altura fiable).")
         return
-    # alisar (el GPS baila ±5-10 m en altura) y contar subidas y bajadas solo cuando cambian más de 5 m
-    ventana = 15
-    lisas = [sorted(alts[max(0, i - ventana):i + ventana + 1])[len(alts[max(0, i - ventana):i + ventana + 1]) // 2]
-             for i in range(len(alts))]
-    sube = baja = 0.0
-    ref = lisas[0]
-    for a in lisas:
-        if a - ref >= 5:
-            sube += a - ref; ref = a
-        elif ref - a >= 5:
-            baja += ref - a; ref = a
-    stats["gps_recorrido"].update({"sube_m": round(sube), "baja_m": round(baja),
+    sube, baja = rutas._desnivel(pts)
+    lisas = [p["alt_lisa"] for p in pts]
+    stats["gps_recorrido"].update({"sube_m": sube, "baja_m": baja,
                                    "alt_min": round(min(lisas)), "alt_max": round(max(lisas)),
                                    "alt_inicio": round(lisas[0]), "alt_fin": round(lisas[-1])})
     h("marcha", "gris", "Recorrido con GPS",
-      f"{_n(km)} km según el GPS del móvil. Sube {round(sube)} m y baja {round(baja)} m "
+      f"{_n(km)} km según el GPS del móvil. Sube {sube} m y baja {baja} m "
       f"(empieza a {round(lisas[0])} m y acaba a {round(lisas[-1])} m sobre el mar; "
       f"entre {round(min(lisas))} y {round(max(lisas))} m).")
 
@@ -717,9 +721,14 @@ def _salud_sensores(filas, marcha, h, en_marcha, parado, caliente, conduciendo, 
     # --- picado: el avance cae de golpe con el motor estable
     caidas = 0
     avs = [(f["t"], f["avance"]) for f in filas if f.get("avance") is not None]
-    def recupera(t1, b):
-        return any(t1 < t <= t1 + 4.5 and v > b + 7 for t, v in avs[max(0, _idx.get(t1, 0)):_idx.get(t1, 0) + 12])
-    _idx = {t: i for i, (t, _) in enumerate(avs)}
+    def recupera(t1, b):  # el avance vuelve a subir en los 4,5 s siguientes (por tiempo: cada coche lee a su ritmo)
+        i = bisect.bisect_right(ts_avs, t1)
+        while i < len(avs) and avs[i][0] <= t1 + 4.5:
+            if avs[i][1] > b + 7:
+                return True
+            i += 1
+        return False
+    ts_avs = [t for t, _ in avs]
     for f0, f1 in zip(filas, filas[1:]):
         a, b = f0.get("avance"), f1.get("avance")
         if a is None or b is None or not conduciendo(f0) or not conduciendo(f1):

@@ -673,7 +673,34 @@ def mantenimiento_md(mant):
     """MANTENIMIENTO.md se genera siempre a partir de mantenimiento.json (que es el que manda)."""
     lineas = ["# Historial de Mantenimiento — Dacia Sandero Stepway 2011 (K7M 1.6 8V)", "",
               "_Lo escribe la web a partir de `mantenimiento.json`: lo que se cambie aquí a mano se pierde._", "",
-              "## Pendiente antes de la ITV (Diciembre 2026)"]
+              ]
+    v = mant.get("vehiculo") or {}
+    if v:
+        lineas += ["## Datos del coche", ""]
+        if v.get("itv_fin"):
+            try:
+                fin = datetime.strptime(v["itv_fin"], "%Y-%m-%d")
+                lineas.append(f"- **ITV**: {v.get('itv_resultado', '')}, válida hasta el {fin:%d/%m/%Y}")
+            except ValueError:
+                lineas.append(f"- **ITV** válida hasta {v['itv_fin']}")
+        if v.get("km_ultima_itv"):
+            lineas.append(f"- Km en la última ITV: {int(v['km_ultima_itv']):,}".replace(",", "."))
+        motor = ", ".join(x for x in (
+            f"{v['cilindrada_cc']} cc" if v.get("cilindrada_cc") else "",
+            f"{v['potencia_kw']} kW ({round(v['potencia_kw'] * 1.36)} CV)" if v.get("potencia_kw") else "",
+            v.get("combustible", "")) if x)
+        if motor:
+            lineas.append(f"- Motor: {motor}")
+        emis = ", ".join(x for x in (v.get("normativa", ""), f"{v['co2_g_km']} g/km de CO₂" if v.get("co2_g_km") else "",
+                                     f"etiqueta {v['distintivo']}" if v.get("distintivo") else "") if x)
+        if emis:
+            lineas.append(f"- Emisiones: {emis}")
+        if v.get("tara_kg") or v.get("mma_kg"):
+            lineas.append(f"- Masas: tara {v.get('tara_kg', '?')} kg, máxima {v.get('mma_kg', '?')} kg")
+        if v.get("fuente"):
+            lineas.append(f"- _Fuente: {v['fuente']}_")
+        lineas.append("")
+    lineas += ["## Pendiente antes de la ITV (Diciembre 2026)"]
     for x in mant.get("pendientes_itv_dic2026", []):
         marca = "x" if x.get("hecho") else " "
         est = "Hecho ✅" if x.get("hecho") else ("comprado ✅" if x.get("comprado") else "por comprar")

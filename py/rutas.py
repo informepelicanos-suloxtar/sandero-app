@@ -250,6 +250,10 @@ def _fmt(x, dec=1):
     return f"{x:.{dec}f}".replace(".", ",")
 
 
+def _firmado(x, dec=1):
+    return f"{'+' if x > 0 else ''}{_fmt(x, dec)}"
+
+
 def por_que(v, ref):
     """Por qué el viaje v gastó más que ref (la vez que menos gastó en esa ruta). Lista de motivos,
     de más a menos litros; los que no se pueden medir en litros van al final."""
@@ -310,8 +314,8 @@ def por_que(v, ref):
         m(None, f"Más acelerones: {fv['acelerones']} pisando a fondo, frente a {fr['acelerones']} la mejor vez.", "acelerones")
     if v.get("correccion_mezcla") is not None and ref.get("correccion_mezcla") is not None \
             and v["correccion_mezcla"] - ref["correccion_mezcla"] >= 4:
-        m(None, f"El coche corrigió más la mezcla: +{_fmt(v['correccion_mezcla'])} % de gasolina, frente a "
-                f"+{_fmt(ref['correccion_mezcla'])} % la mejor vez.", "mezcla")
+        m(None, f"El coche corrigió más la mezcla: {_firmado(v['correccion_mezcla'])} % de gasolina, frente a "
+                f"{_firmado(ref['correccion_mezcla'])} % la mejor vez.", "mezcla")
     if fv.get("temp_aire") is not None and fr.get("temp_aire") is not None and fr["temp_aire"] - fv["temp_aire"] >= 6:
         m(None, f"Hacía más fresco al salir: aire a {fv['temp_aire']} °C, frente a {fr['temp_aire']} °C la mejor vez "
                 f"(tarda más en calentar).", "aire")

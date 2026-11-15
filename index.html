@@ -430,6 +430,7 @@ label.marca{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size
         <h2 style="margin:0">Pendiente antes de la ITV (Diciembre)</h2>
         <span class="estado gris" id="mantResumen"></span>
       </div>
+      <div id="mantItv" class="mensaje-con" style="margin:6px 0 4px;display:none"></div>
       <div class="barra-prog"><div id="mantBarra" style="width:0%"></div></div>
       <p class="mensaje-con" id="textoMantenimiento" style="margin-top:0">Marca cada tarea al hacerla o pulsa en la etiqueta para alternar <b>Pendiente ↔ Comprado ✅</b>. Se guarda en <code>~/coche-obd/mantenimiento.json</code>.</p>
       <div class="aviso" id="mantAviso" hidden style="margin:0 0 10px"></div>
@@ -517,15 +518,17 @@ async function api(ruta, cuerpo){
   return r.json();
 }
 
-document.querySelectorAll("#pestanas button").forEach(b => b.onclick = () => {
-  document.querySelectorAll("#pestanas button").forEach(x => x.classList.toggle("activo", x===b));
-  document.querySelectorAll(".pestana").forEach(p => p.classList.toggle("activa", p.id==="p-"+b.dataset.p));
-  if (b.dataset.p==="directo") requestAnimationFrame(redibujarTodo);
-  if (b.dataset.p==="historial") cargarSesiones();
-  if (b.dataset.p==="rutas") cargarRutas();
-  if (b.dataset.p==="mantenimiento") cargarMantenimiento();
-  if (b.dataset.p==="claude") cargarClaude();
-});
+function mostrarPestana(nombre, cargar = true){  // cargar=false: quien la abre ya carga los datos él mismo
+  document.querySelectorAll("#pestanas button").forEach(x => x.classList.toggle("activo", x.dataset.p===nombre));
+  document.querySelectorAll(".pestana").forEach(p => p.classList.toggle("activa", p.id==="p-"+nombre));
+  if (nombre==="directo") requestAnimationFrame(redibujarTodo);
+  if (!cargar) return;
+  if (nombre==="historial") cargarSesiones();
+  if (nombre==="rutas") cargarRutas();
+  if (nombre==="mantenimiento") cargarMantenimiento();
+  if (nombre==="claude") cargarClaude();
+}
+document.querySelectorAll("#pestanas button").forEach(b => b.onclick = () => mostrarPestana(b.dataset.p));
 
 // ------------------------------------------------------------------ pestaña «Claude»: mensajes, historial y buzón
 function mdLinea(t){
@@ -1285,6 +1288,18 @@ function pintarMantenimiento(m){
     $("mantResumen").className = "estado " + (hechas === lista.length && lista.length ? "verde" : "amarillo");
     $("mantResumen").textContent = `${hechas} de ${lista.length} hechas` + (compradas ? ` · ${compradas} compradas` : "");
   }
+  const v = m.vehiculo || {}, itv = $("mantItv");
+  if (itv && v.itv_fin) {
+    const fin = new Date(v.itv_fin + "T00:00:00"), hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+    const dias = Math.round((fin - hoy) / 86400000);
+    const color = dias < 0 ? "rojo" : dias <= 30 ? "amarillo" : "verde";
+    const cuando = dias < 0 ? `caducó hace ${-dias} días` : dias === 0 ? "caduca hoy" : `faltan <b>${dias} días</b>`;
+    const tec = [v.potencia_kw && `${v.potencia_kw} kW (${Math.round(v.potencia_kw * 1.36)} CV)`, v.normativa,
+                 v.km_ultima_itv && `${Number(v.km_ultima_itv).toLocaleString("es-ES")} km en la última ITV`].filter(Boolean);
+    itv.style.display = "";
+    itv.innerHTML = `<span class="estado ${color}">ITV hasta el ${fin.toLocaleDateString("es-ES")}</span> ${cuando}`
+      + (tec.length ? `<br><small style="color:var(--sub)">${tec.map(esc).join(" · ")}</small>` : "");
+  }
   if ($("mantBarra")) $("mantBarra").style.width = (lista.length ? Math.round(hechas / lista.length * 100) : 0) + "%";
   const n = m._nube, vacio = !lista.length && !(m.historial||[]).length;
   if ($("mantAviso")) {
@@ -1439,7 +1454,7 @@ async function verRuta(id, carpeta){
     ${htmlPorQue(v, mejor)}
     <details ${r.veces === 1 ? "open" : ""}><summary>Dónde se fue la gasolina en esta salida</summary>${htmlEnQue(v)}
       <p class="mensaje-con">Motor: ${v.temp_motor_media ?? "–"} °C de media · aire al salir ${v.factores?.temp_aire ?? "–"} °C ·
-        corrección de la mezcla +${n1(v.correccion_mezcla)} % · ${v.factores?.paradas ?? "–"} paradas · ${v.factores?.acelerones ?? "–"} acelerones ·
+        corrección de la mezcla ${v.correccion_mezcla > 0 ? "+" : ""}${n1(v.correccion_mezcla)} % · ${v.factores?.paradas ?? "–"} paradas · ${v.factores?.acelerones ?? "–"} acelerones ·
         máxima ${v.factores?.kmh_max ?? "–"} km/h · ${v.factores?.rpm_a_50 ? `${v.factores.rpm_a_50} rpm a 50 km/h` : ""}</p></details>`;
   p.scrollIntoView({behavior: "smooth", block: "start"});
   let d;
@@ -1500,10 +1515,9 @@ async function renombrarRuta(id){
   const res = await api("/api/ruta_nombre", {id, nombre});
   if (res.ok) { tostada("Nombre guardado"); cargarRutas(); } else tostada(res.error || "No se pudo guardar");
 }
-function irARuta(carpeta){
-  document.querySelector('[data-p="rutas"]').click();
+function irARuta(carpeta){  // al pulsar la pestaña ya se cargan las rutas (una sola vez): se abre la salida al llegar
   const abrirla = () => { const r = (rutasCache || []).find(x => x.viajes.some(v => v.carpeta === carpeta)); if (r) verRuta(r.id, carpeta); };
-  if (rutasCache) abrirla(); else setTimeout(abrirla, 800);
+  mostrarPestana("rutas", false);
   cargarRutas().then(abrirla);
 }
 

@@ -35,7 +35,7 @@ WEB = BASE / "web"
 REGISTROS = BASE / "registros"
 REGISTROS.mkdir(exist_ok=True)
 
-COCHE = {"modelo": "Dacia Sandero Stepway", "año": 2011, "motor": "K7M 8A 1.6 8V gasolina"}
+COCHE = {"modelo": "Dacia Sandero Stepway", "año": 2011, "motor": "K7M A8 1.6 8V gasolina"}
 
 PRUEBAS = {
     "libre": {"nombre": "Grabación libre"},
@@ -671,7 +671,7 @@ def leer_mantenimiento():
 
 def mantenimiento_md(mant):
     """MANTENIMIENTO.md se genera siempre a partir de mantenimiento.json (que es el que manda)."""
-    lineas = ["# Historial de Mantenimiento — Dacia Sandero Stepway 2011 (K7M 8A 1.6 8V)", "",
+    lineas = ["# Historial de Mantenimiento — Dacia Sandero Stepway 2011 (K7M A8 1.6 8V)", "",
               "_Lo escribe la web a partir de `mantenimiento.json`: lo que se cambie aquí a mano se pierde._", "",
               ]
     v = mant.get("vehiculo") or {}

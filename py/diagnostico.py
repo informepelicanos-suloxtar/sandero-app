@@ -195,7 +195,11 @@ def diagnosticar(filas, averias=None, consumo_real=None, factor_consumo=None, co
             continue
         if tramo and tramo[-1]["t"] - tramo[0]["t"] >= 12:
             t_ini, t_fin = tramo[0]["t"], tramo[-1]["t"]
-            estables.update(id(x) for x in tramo if x["t"] - t_ini > 5 and t_fin - x["t"] > 3)
+            # además, el lector a veces trae aún las rpm de cuando venía rodando (16/11/2026: 1.116 rpm parado)
+            dentro = [x for x in tramo if x["t"] - t_ini > 5 and t_fin - x["t"] > 3]
+            while dentro and dentro[0]["rpm"] > 1000:
+                dentro.pop(0)
+            estables.update(id(x) for x in dentro)
         tramo = []
     ralenti_cal = lambda f: id(f) in estables
     t_marcha = sum(min(b["t"] - a["t"], 5) for a, b in zip(filas, filas[1:]) if en_marcha(a))
@@ -291,7 +295,10 @@ def diagnosticar(filas, averias=None, consumo_real=None, factor_consumo=None, co
             h("encendido", "amarillo", "Avance muy retrasado al ralentí", f"{_n(statistics.fmean(av_r))}° de media.")
     else:
         h("encendido", "gris", "Ralentí en caliente sin revisar", "Hace falta un rato con el motor caliente y el coche parado.")
-    av_c = serie("avance", lambda f: conduciendo(f) and (f.get("carga") or 100) < 50 and (f.get("velocidad") or 0) > 30)
+    # con el pie fuera (retención, MAP < 27) la centralita quita avance a propósito: no cuenta (16/11/2026)
+    av_c = serie("avance", lambda f: conduciendo(f) and (f.get("carga") or 100) < 50 and (f.get("velocidad") or 0) > 30
+                 and (f.get("map") or 100) >= 27
+                 and not (acel_min is not None and f.get("acelerador") is not None and f["acelerador"] <= acel_min + 3))
     if len(av_c) > 30:
         m = statistics.fmean(av_c)
         stats["avance_conduciendo_poca_carga"] = _est(av_c)
@@ -333,7 +340,8 @@ def diagnosticar(filas, averias=None, consumo_real=None, factor_consumo=None, co
                 and (x.get("min") or 0) >= MEZCLA_MIN_VALIDO]
         viajes = (prev + [este])[-MEZCLA_VIAJES:] if valido else prev[-MEZCLA_VIAJES:]
         firmar = lambda x: f"{'+' if x > 0 else ''}{_n(x, 1)}"
-        minutos = lambda e: "menos de 1 min" if not e or e["min"] < 1 else f"{_n(e['min'], 0)} min"
+        minutos = lambda e: ("menos de 1 min" if not e or e["min"] < 1 else
+                             f"{_n(e['min'], 1)} min" if round(e["min"]) >= MEZCLA_MIN_VALIDO > e["min"] else f"{_n(e['min'], 0)} min")
         if viajes:
             med = statistics.fmean(x["media"] for x in viajes)
             lo, hi = min(x["media"] for x in viajes), max(x["media"] for x in viajes)
@@ -475,7 +483,10 @@ def diagnosticar(filas, averias=None, consumo_real=None, factor_consumo=None, co
               f"{m:.0f} kPa de media (normal 25-45). Toma de aire, sensor MAP o mariposa que no cierra.")
         else:
             h("aire", "verde", "Buen vacío al ralentí", f"{m:.0f} kPa de media.")
-    map_p = serie("map", lambda f: not en_marcha(f))
+    ts_marcha = [f["t"] for f in filas if en_marcha(f)]
+    lejos_de_marcha = lambda f: not ts_marcha or min(abs(f["t"] - t) for t in (ts_marcha[0], ts_marcha[-1])) > 5
+    map_p = serie("map", lambda f: not en_marcha(f) and lejos_de_marcha(f) and
+                  not (ts_marcha and ts_marcha[0] < f["t"] < ts_marcha[-1]))
     if len(map_p) > 3:
         m = statistics.fmean(map_p)
         if not 85 <= m <= 106:
@@ -562,7 +573,13 @@ def diagnosticar(filas, averias=None, consumo_real=None, factor_consumo=None, co
     if len(crucero) > 60:
         c = statistics.fmean(f["carga"] for f in crucero)
         stats["carga_crucero"] = round(c, 1)
-        if c > 70:
+        cuesta = _pendiente(crucero)
+        if cuesta is not None:
+            stats["pendiente_crucero_pct"] = round(cuesta, 1)
+        if c > 70 and cuesta is not None and cuesta >= 2:
+            h("marcha", "gris", "Mucho esfuerzo a velocidad de carretera, pero cuesta arriba",
+              f"A 80-110 km/h va al {c:.0f} % de esfuerzo, subiendo de media un {_n(cuesta)} % (GPS). Es normal.")
+        elif c > 70:
             h("marcha", "amarillo", "El motor se esfuerza mucho a velocidad de carretera",
               f"A 80-110 km/h va al {c:.0f} % de esfuerzo. Si era llano: mira la presión de los neumáticos y que no "
               "roce ningún freno (rueda que se calienta).", gasto=True)
@@ -593,6 +610,21 @@ LIMITES = {
     "rpm": ("Sensor de régimen (cigüeñal)", None, 6800, None, "rpm"),
     "bateria": ("Tensión de batería", 9.5, 16, None, "V"),
 }
+
+
+def _pendiente(tramo):
+    """Cuesta media (%) de unas filas según la altura del GPS: subida neta / distancia recorrida.
+    Solo suma entre filas seguidas (menos de 3 s), así se ignoran los huecos. None si no hay datos."""
+    sube = dist = 0.0
+    previa = None
+    for f in sorted(tramo, key=lambda x: x["t"]):
+        if f.get("gps_alt") is None or (f.get("gps_precision") or 0) > 30:
+            continue
+        if previa and 0 < f["t"] - previa["t"] < 3:
+            sube += f["gps_alt"] - previa["gps_alt"]
+            dist += (f.get("velocidad") or 0) / 3.6 * (f["t"] - previa["t"])
+        previa = f
+    return sube / dist * 100 if dist > 500 else None
 
 
 def _gps_vs_coche(filas, corr, stats, h):

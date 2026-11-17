@@ -213,7 +213,7 @@ def diagnosticar(filas, averias=None, consumo_real=None, factor_consumo=None, co
     if len(en_carretera) > 300 and ya_caliente:
         med_carr = statistics.median(en_carretera)
         stats["temp_motor_en_marcha"] = med_carr
-        enfria_marcha = med_carr < 84
+        enfria_marcha = med_carr < 86
 
     if temps:
         stats["temp_motor"] = _est(temps)
@@ -254,10 +254,13 @@ def diagnosticar(filas, averias=None, consumo_real=None, factor_consumo=None, co
                 h("refrigeracion", "amarillo", "El motor va frío",
                   f"Después de 10 min sigue a {statistics.median(tarde):.0f} °C de media (normal 85-100). "
                   "Termostato abierto: gasta más.", gasto=True)
-            elif max(temps) >= 80:
+            elif max(temps) >= 86:
                 h("refrigeracion", "verde",
                   "Alcanza temperatura parado" if enfria_marcha else "Temperatura de trabajo correcta",
                   f"Máxima {max(temps):.0f} °C.")
+            elif max(temps) >= 78 and len(tarde) > 30:
+                h("refrigeracion", "amarillo", "No llega a su temperatura",
+                  f"Máxima {max(temps):.0f} °C; lo normal es 88-92 °C. Suele ser el termostato: gasta algo más.", gasto=True)
             if not enfria_marcha and len(en_carretera) <= 300:
                 h("refrigeracion", "gris", "Termostato sin revisar del todo",
                   "El motor ya estaba templado al conectar. Para revisarlo bien haz la prueba de arranque en frío o circula en carretera.")

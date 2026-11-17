@@ -27,7 +27,7 @@ def _trim(d):
 
 
 SISTEMA_COMBUSTIBLE = {
-    1: ("Lazo abierto: motor frío", "gris"),
+    1: ("Lazo abierto: el coche lo llama «motor frío», pero en el Sandero sale también en caliente", "gris"),
     2: ("Lazo cerrado: la sonda lambda está mandando (normal)", "verde"),
     4: ("Lazo abierto: estás soltando gas o pidiendo mucha fuerza", "gris"),
     8: ("Lazo abierto por AVERÍA en el sistema", "rojo"),
@@ -247,6 +247,8 @@ def evaluar(clave, v, ctx, historial):
             return "gris", "Calentando…"
         if v < 80:
             return "gris", "Casi caliente"
+        if v < 86:
+            return "amarillo", "Algo frío: lo normal es 88-92 °C. Si en marcha se queda aquí, es el termostato"
         if v <= 104:
             return "verde", "Temperatura correcta"
         if v <= 110:

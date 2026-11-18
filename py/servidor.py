@@ -280,6 +280,10 @@ class Lector(threading.Thread):
             # Si acaba de conectar y en <20 s empieza una prueba guiada, descartar el trocito libre inicial
             min_f = 80 if (self.grabacion.prueba == "libre" and prueba != "libre") else 10
             self.ultimo_resumen = self.grabacion.cerrar(min_filas=min_f)
+        # cada grabación empieza en blanco: si no, las primeras filas llevan valores de la anterior hasta que
+        # se vuelven a leer (16/11/2026 08:04: 4 s con LTFT 27,3 del viaje anterior; el coche ya decía 18)
+        with self.lock:
+            self.valores = {k: v for k, v in self.valores.items() if k == "bateria"}
         self.grabacion = Grabacion(prueba, self._claves(), self.elm.info)
         self.grabacion.sesion["correccion_velocidad"] = self._corr_velocidad()
         self.grabacion.guardar_sesion()

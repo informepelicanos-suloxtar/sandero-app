@@ -91,6 +91,7 @@ class Grabacion:
         self.w.writerow(["t", "hora"] + claves)
         self.filas = 0
         self.memoria = []  # las mismas filas en memoria, para el diagnóstico en directo
+        self.lock = threading.RLock()
         self.sesion = {"coche": COCHE, "inicio": ahora.isoformat(timespec="seconds"),
                        "inicio_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                        "prueba": {"tipo": prueba, **PRUEBAS.get(prueba, {})}, "lector": info,
@@ -107,12 +108,14 @@ class Grabacion:
             self.f.flush()
 
     def nota(self, texto):
-        self.sesion["notas"].append({"t": round(time.time() - self.inicio, 1),
-                                     "hora": datetime.now().strftime("%H:%M:%S"), "texto": texto})
-        self.guardar_sesion()
+        with self.lock:
+            self.sesion["notas"].append({"t": round(time.time() - self.inicio, 1),
+                                         "hora": datetime.now().strftime("%H:%M:%S"), "texto": texto})
+            self.guardar_sesion()
 
     def guardar_sesion(self):
-        (self.carpeta / "sesion.json").write_text(json.dumps(self.sesion, ensure_ascii=False, indent=2))
+        with self.lock:
+            (self.carpeta / "sesion.json").write_text(json.dumps(self.sesion, ensure_ascii=False, indent=2))
 
     def cerrar(self, min_filas=10):
         self.sesion["fin"] = datetime.now().isoformat(timespec="seconds")
@@ -228,8 +231,9 @@ class Lector(threading.Thread):
             self.conexion = {"estado": "error", "mensaje": str(error)}
             raise error
         if destino != "demo":
-            self.ajustes["ultimo_lector"] = d
-            (BASE / "ajustes.json").write_text(json.dumps(self.ajustes, ensure_ascii=False, indent=2))
+            with self.lock:
+                self.ajustes["ultimo_lector"] = d
+                (BASE / "ajustes.json").write_text(json.dumps(self.ajustes, ensure_ascii=False, indent=2))
         info["destino"] = t.nombre
         self.elm = elm
         self.conexion = {"estado": "conectado", "mensaje": f"Conectado: {info['protocolo']}", **info}
@@ -638,32 +642,34 @@ def definiciones():
 
 def guardar_ajustes(cuerpo):
     """Cambia los ajustes que manda la web. Devuelve (ok, ajustes o texto del error)."""
-    aj = dict(LECTOR.ajustes)
-    for k, lim in (("consumo_real", (2, 30)), ("factor_consumo", (0.5, 2)), ("correccion_bateria", (-2, 2)),
-                   ("correccion_velocidad", (0.8, 1.3))):
-        if k in cuerpo:
-            try:
-                v = float(str(cuerpo[k]).replace(",", "."))
-            except (TypeError, ValueError):
-                v = None
-            if cuerpo[k] in ("", None):
-                aj.pop(k, None)
-            elif v is None:
-                return False, "Eso no es un número"
-            elif lim[0] <= v <= lim[1]:
-                aj[k] = round(v, 3)
-            else:
-                return False, f"Valor fuera de rango ({lim[0]}-{lim[1]})"
-    (BASE / "ajustes.json").write_text(json.dumps(aj, ensure_ascii=False, indent=2))
-    antes = LECTOR._corr_velocidad()
-    LECTOR.ajustes = aj
-    g = LECTOR.grabacion
-    if g and abs(LECTOR._corr_velocidad() - antes) > 1e-6:
-        # cambiada a mitad de grabación: apuntar desde cuándo, para que la revisión reescale bien cada tramo
-        g.sesion.setdefault("cambios_correccion_velocidad", []).append(
-            {"t": round(time.time() - g.inicio, 1), "valor": LECTOR._corr_velocidad()})
-        g.nota(f"Corrección de velocidad cambiada a {LECTOR._corr_velocidad()}")
-    return True, aj
+    with LECTOR.lock:
+        aj = dict(LECTOR.ajustes)
+        for k, lim in (("consumo_real", (2, 30)), ("factor_consumo", (0.5, 2)), ("correccion_bateria", (-2, 2)),
+                       ("correccion_velocidad", (0.8, 1.3))):
+            if k in cuerpo:
+                try:
+                    v = float(str(cuerpo[k]).replace(",", "."))
+                except (TypeError, ValueError):
+                    v = None
+                if cuerpo[k] in ("", None):
+                    aj.pop(k, None)
+                elif v is None:
+                    return False, "Eso no es un número"
+                elif lim[0] <= v <= lim[1]:
+                    aj[k] = round(v, 3)
+                else:
+                    return False, f"Valor fuera de rango ({lim[0]}-{lim[1]})"
+        (BASE / "ajustes.json").write_text(json.dumps(aj, ensure_ascii=False, indent=2))
+        antes = LECTOR._corr_velocidad()
+        LECTOR.ajustes = aj
+        g = LECTOR.grabacion
+        if g and abs(LECTOR._corr_velocidad() - antes) > 1e-6:
+            # cambiada a mitad de grabación: apuntar desde cuándo, para que la revisión reescale bien cada tramo
+            with g.lock:
+                g.sesion.setdefault("cambios_correccion_velocidad", []).append(
+                    {"t": round(time.time() - g.inicio, 1), "valor": LECTOR._corr_velocidad()})
+                g.nota(f"Corrección de velocidad cambiada a {LECTOR._corr_velocidad()}")
+        return True, aj
 
 
 def leer_mantenimiento():

@@ -798,8 +798,9 @@ def _salud_sensores(filas, marcha, h, en_marcha, parado, caliente, conduciendo, 
     # --- ventilador
     seg = t_seguidos = 0
     for a, b in zip(filas, filas[1:]):
-        if en_marcha(a) and parado(a) and (a.get("temp_motor") or 0) >= 104:
-            t_seguidos += b["t"] - a["t"]
+        dt = b["t"] - a["t"]
+        if en_marcha(a) and parado(a) and (a.get("temp_motor") or 0) >= 104 and 0 <= dt <= 15:
+            t_seguidos += min(dt, 5)
             seg = max(seg, t_seguidos)
         else:
             t_seguidos = 0

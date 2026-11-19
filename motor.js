@@ -10,7 +10,7 @@
  */
 (() => {
 "use strict";
-const VERSION = "068aa8f095";
+const VERSION = "cb414eb669";
 const PY = ["pids.py", "averias.py", "diagnostico.py", "analisis.py", "rutas.py", "servidor.py", "elm327.py", "simulador.py", "movil_py.py"];
 const espera = ms => new Promise(r => setTimeout(r, ms));
 const h2 = n => n.toString(16).toUpperCase().padStart(2, "0");
@@ -70,7 +70,7 @@ async function arrancar() {
   setTimeout(subirPendientes, 5000);
   setInterval(subirPendientes, 120000);
   setTimeout(() => sincronizarMantenimiento(true), 7000);
-  window.addEventListener("online", () => setTimeout(() => { subirPendientes(); sincronizarMantenimiento(true); }, 3000));
+  window.addEventListener("online", () => setTimeout(() => { subirPendientes(); sincronizarMantenimiento(true); sincronizarRutas(); }, 3000));
   setInterval(reconectarSolo, 15000);
   setTimeout(reconectarSolo, 1500);
   ajustarTextos();
@@ -722,13 +722,13 @@ function mantJuntar3(base, local, remoto) {
   return out;
 }
 
-function ajustesJuntar(local, remoto, base) {  // ultimo_lector es de cada móvil; lo demás lo manda el repositorio
+function ajustesJuntar(local, remoto, base) {  // ultimo_lector es de cada móvil; lo demás se junta a 3 bandas
   const out = { ...local };
-  const claves = new Set([...Object.keys(remoto), ...Object.keys(base || local)]);
+  const claves = new Set([...Object.keys(remoto || {}), ...Object.keys(base || local || {})]);
   for (const k of claves) {
     if (k === "ultimo_lector") continue;
     if (base && !mismo(local[k], base[k])) continue;  // cambiado en este móvil después de la última vez
-    if (k in remoto) out[k] = remoto[k]; else delete out[k];
+    if (remoto && k in remoto) out[k] = remoto[k]; else delete out[k];
   }
   return out;
 }
@@ -746,14 +746,20 @@ async function sincronizarMantenimiento(forzar) {
   mantEnMarcha = (async () => {
     const cambios = mantCambios;
     try {
-      // ajustes: los cambiados en el repositorio llegan también a los móviles ya instalados (sin pisar lo tocado aquí)
+      // ajustes: sincronización en los dos sentidos (sin tocar ultimo_lector del otro aparato)
       const aj = await gh("/contents/ajustes.json?ref=main", { crudo: true, vacio404: true });
-      if (aj) {
-        const remotoAj = JSON.parse(aj), localAj = leerJSON("/coche/ajustes.json", {});
-        const juntoAj = ajustesJuntar(localAj, remotoAj, leerJSON(AJ_BASE, null));
-        escribirJSON(AJ_BASE, remotoAj);
-        if (JSON.stringify(juntoAj) !== JSON.stringify(localAj)) { escribirJSON("/coche/ajustes.json", juntoAj); M.recargar_ajustes(); }
+      const remotoAj = aj ? JSON.parse(aj) : {};
+      const localAj = leerJSON("/coche/ajustes.json", {}), baseAj = leerJSON(AJ_BASE, null);
+      const juntoAj = ajustesJuntar(localAj, remotoAj, baseAj);
+      const subirAj = { ...juntoAj };
+      if ("ultimo_lector" in remotoAj) subirAj.ultimo_lector = remotoAj.ultimo_lector; else delete subirAj.ultimo_lector;
+      if (JSON.stringify(juntoAj) !== JSON.stringify(localAj)) { escribirJSON("/coche/ajustes.json", juntoAj); M.recargar_ajustes(); }
+      const hayDatosAj = Object.keys(subirAj).some(k => k !== "ultimo_lector");
+      if ((aj || hayDatosAj) && !mismo(subirAj, remotoAj)) {
+        await commitArchivos([["ajustes.json", new TextEncoder().encode(JSON.stringify(subirAj, null, 2) + "\n")]],
+          "Ajustes: cambios desde el móvil");
       }
+      if (aj || hayDatosAj) escribirJSON(AJ_BASE, subirAj);
       const est = leerJSON(MANT_EST, {}), base = leerJSON(MANT_BASE, null);
       const local = leerJSON(MANT_F, null);
       const texto = await gh("/contents/mantenimiento.json?ref=main", { crudo: true, vacio404: true });
@@ -784,23 +790,40 @@ async function sincronizarMantenimiento(forzar) {
   if (otra) return sincronizarMantenimiento(true);  // se marcó algo mientras tanto
 }
 
-// Nombres de las rutas (pestaña 🗺️ Rutas): rutas.json en la raíz del repositorio. Lo que se cambia en el móvil se
-// sube; si no hay nada pendiente, manda lo del repositorio (por si se le puso nombre desde el Mac).
-const RUTAS_F = "/coche/rutas.json", RUTAS_EST = "/coche/rutas_nube.json";
+// Nombres de las rutas (pestaña 🗺️ Rutas): rutas.json en la raíz del repositorio, juntado a tres bandas
+// para no pisar nombres puestos desde el Mac ni desde el móvil.
+const RUTAS_F = "/coche/rutas.json", RUTAS_EST = "/coche/rutas_nube.json", RUTAS_BASE = "/coche/rutas_base.json";
+let rutasEnMarcha = null;
+function rutasJuntar(base, local, remoto, mandaLocal) {
+  const b = (base && base.nombres) || {}, l = (local && local.nombres) || {}, r = (remoto && remoto.nombres) || {};
+  const nombres = {};
+  for (const k of new Set([...Object.keys(r), ...Object.keys(l)])) {
+    const v = base ? (mismo(l[k], b[k]) ? r[k] : l[k]) : (mandaLocal ? (k in l ? l[k] : r[k]) : (k in r ? r[k] : l[k]));
+    if (v) nombres[k] = v;
+  }
+  return { ...(remoto || {}), ...(local || {}), nombres };
+}
 async function sincronizarRutas(subir) {
+  if (rutasEnMarcha) return rutasEnMarcha;
   if (!py || !nube().token || !navigator.onLine) return;
-  try {
-    if (subir || leerJSON(RUTAS_EST, {}).pendiente) {
-      const local = leerJSON(RUTAS_F, {});
-      await commitArchivos([["rutas.json", new TextEncoder().encode(JSON.stringify(local, null, 2) + "\n")]],
-        "Rutas: nombres puestos desde el móvil");
-      escribirJSON(RUTAS_EST, { pendiente: false });
-    } else {
+  rutasEnMarcha = (async () => {
+    try {
+      const pend = !!(subir || leerJSON(RUTAS_EST, {}).pendiente);
+      const local = leerJSON(RUTAS_F, {}), base = leerJSON(RUTAS_BASE, null);
       const texto = await gh("/contents/rutas.json?ref=main", { crudo: true, vacio404: true });
-      if (texto) { const dato = JSON.parse(texto); if (dato && typeof dato === "object") escribirJSON(RUTAS_F, dato); }
-    }
-    guardar();
-  } catch (e) { console.error("rutas", e); }
+      let remoto = null; try { remoto = texto ? JSON.parse(texto) : null; } catch {}
+      const junto = rutasJuntar(base, local, remoto, pend);
+      if (!mismo(junto, local)) escribirJSON(RUTAS_F, junto);
+      if ((pend || Object.keys(junto.nombres).length) && !mismo(junto, remoto || { nombres: {} })) {
+        await commitArchivos([["rutas.json", new TextEncoder().encode(JSON.stringify(junto, null, 2) + "\n")]],
+          "Rutas: nombres puestos desde el móvil");
+      }
+      escribirJSON(RUTAS_BASE, junto);
+      escribirJSON(RUTAS_EST, { pendiente: false });
+      guardar();
+    } catch (e) { console.error("rutas", e); }
+  })().finally(() => { rutasEnMarcha = null; });
+  return rutasEnMarcha;
 }
 
 async function bajarArchivo(carpeta, nombre) {  // p. ej. el GPX de una salida: compartir (Garmin, Drive…) o a Descargas
@@ -900,6 +923,7 @@ async function api(ruta, cuerpo) {
       const r = JSON.parse(M.post(ruta, JSON.stringify(cuerpo)));
       if (ruta !== "/api/gps") guardar();  // el GPS llega 2,5 veces/s: ya se guarda solo cada 10 s
       if (ruta === "/api/mantenimiento") mantenimientoTocado();
+      if (ruta === "/api/ajustes" && r.ok) { mantCambios++; sincronizarMantenimiento(true); }
       if (ruta === "/api/ruta_nombre" && r.ok) { escribirJSON(RUTAS_EST, { pendiente: true }); sincronizarRutas(true); }
       return r;
     }

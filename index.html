@@ -14,13 +14,20 @@
   --sombra:0 1px 2px rgba(0,0,0,.05),0 2px 8px rgba(0,0,0,.04);
 }
 @media (prefers-color-scheme:dark){
-  :root{
+  :root:not([data-tema="claro"]){
     --bg:#0f1720; --panel:#17212c; --panel2:#1e2a37; --txt:#e8edf2; --sub:#93a0af; --linea:#273443;
     --acento:#4c8dff; --acento-txt:#fff;
     --verde:#3ccf7f; --verde-bg:#143425; --amarillo:#f0b93a; --amarillo-bg:#3a2f12;
     --rojo:#ff6b61; --rojo-bg:#3f1d1b; --gris:#8995a3; --gris-bg:#222e3b;
     --sombra:none;
   }
+}
+:root[data-tema="oscuro"]{
+  --bg:#0f1720; --panel:#17212c; --panel2:#1e2a37; --txt:#e8edf2; --sub:#93a0af; --linea:#273443;
+  --acento:#4c8dff; --acento-txt:#fff;
+  --verde:#3ccf7f; --verde-bg:#143425; --amarillo:#f0b93a; --amarillo-bg:#3a2f12;
+  --rojo:#ff6b61; --rojo-bg:#3f1d1b; --gris:#8995a3; --gris-bg:#222e3b;
+  --sombra:none;
 }
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Ubuntu,sans-serif}
@@ -173,7 +180,7 @@ td:last-child{text-align:right;font-variant-numeric:tabular-nums;font-weight:600
 .sesion a{color:var(--acento);font-size:14px;margin-right:12px;text-decoration:none;font-weight:600}
 code{background:var(--panel2);padding:1px 6px;border-radius:5px;font-size:14px}
 /* ventana */
-.velo{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;z-index:20;padding:16px}
+.velo{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;z-index:35;padding:16px}
 .velo.si{display:flex}
 @media (min-width:640px){.velo{align-items:center}}
 .ventana{background:var(--panel);border-radius:16px;padding:18px;max-width:480px;width:100%;max-height:90vh;overflow:auto}
@@ -181,7 +188,7 @@ code{background:var(--panel2);padding:1px 6px;border-radius:5px;font-size:14px}
 .marcas button{padding:14px 8px;border-radius:10px;border:1px solid var(--linea);background:var(--panel2);color:var(--txt);font-weight:600}
 input[type=text]{font:inherit;width:100%;padding:11px 12px;border-radius:10px;border:1px solid var(--linea);background:var(--panel2);color:var(--txt)}
 label.marca{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size:15px}
-.tostada{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--txt);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;z-index:30;max-width:calc(100% - 32px)}
+.tostada{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--txt);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;z-index:40;max-width:calc(100% - 32px)}
 .tostada.si{opacity:1}
 .ruta-item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--linea);cursor:pointer}
 .ruta-l100{text-align:right;font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
@@ -213,6 +220,55 @@ label.marca{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size
   .grabando .acciones{margin-left:0;width:100%}
   .grabando .acciones .boton{flex:1}
 }
+/* tema + botones cabecera */
+.cab-der{margin-left:auto;display:flex;align-items:center;gap:8px}
+.cab-der .pastilla{margin-left:0}
+.btn-tema{padding:6px 10px;border-radius:999px;font-size:15px;line-height:1}
+/* gráfica de evolución entre viajes */
+.evol-cab{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.evol-info{font-size:13px;color:var(--sub);margin:6px 0 8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;min-height:24px;font-variant-numeric:tabular-nums}
+.evol-canvas{width:100%;height:190px;display:block;cursor:crosshair;touch-action:pan-y}
+.evol-leyenda{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--sub);margin-top:6px}
+/* visor gráficas mejorado */
+.visor-barra{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.graf-s{height:126px}
+/* comparador de viajes */
+.barra-comp{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;border-radius:10px;background:var(--amarillo-bg);margin-bottom:10px;font-size:14px}
+.barra-comp .acciones{margin-left:auto;display:flex;gap:6px}
+.tabla-comp{width:100%;font-size:14px;margin-top:6px}
+.tabla-comp th{text-align:left;font-size:12px;color:var(--sub);padding:6px 4px;border-bottom:1px solid var(--linea)}
+.tabla-comp th:not(:first-child),.tabla-comp td:not(:first-child){text-align:right;font-variant-numeric:tabular-nums}
+.tabla-comp td{padding:6px 4px;border-bottom:1px solid var(--linea);font-weight:400}
+.delta-bien{color:var(--verde);font-weight:600}
+.delta-mal{color:var(--rojo);font-weight:600}
+.delta-neu{color:var(--sub)}
+.sesion.en-comp{background:var(--panel2);border-radius:10px;padding:12px 10px;margin:4px -10px}
+/* perfil ruta interactivo */
+.perfil-info{font-size:13px;color:var(--sub);background:var(--panel2);border-radius:8px;padding:6px 10px;margin:6px 0 2px;font-variant-numeric:tabular-nums;min-height:28px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.perfil-ruta{cursor:crosshair;touch-action:pan-y}
+/* banner pasar al historial en mantenimiento */
+.mant-banner{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:10px;background:var(--verde-bg);margin:0 0 10px;font-size:14px}
+/* modo cuadro de conducción (salpicadero) */
+.cuadro-fs{position:fixed;inset:0;z-index:25;background:var(--bg);color:var(--txt);display:none;flex-direction:column;padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));gap:10px;overflow:auto}
+.cuadro-fs.si{display:flex}
+.cfs-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--sub)}
+.cfs-grid{flex:1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-content:stretch}
+.cfs-card{background:var(--panel);border:2px solid var(--linea);border-radius:16px;padding:14px;display:flex;flex-direction:column;justify-content:center;min-height:110px;position:relative;overflow:hidden}
+.cfs-card.verde{border-color:var(--verde)}.cfs-card.amarillo{border-color:var(--amarillo)}.cfs-card.rojo{border-color:var(--rojo);background:var(--rojo-bg)}
+.cfs-card.alerta-calor{animation:pulsoCalor 1s infinite}
+@keyframes pulsoCalor{50%{border-color:transparent}}
+.cfs-etq{font-size:13px;color:var(--sub);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.cfs-val{font-size:clamp(34px,9vw,64px);font-weight:800;line-height:1.05;font-variant-numeric:tabular-nums;margin:4px 0}
+.cfs-val small{font-size:clamp(14px,3vw,22px);font-weight:600;color:var(--sub);margin-left:4px}
+.cfs-sub{font-size:14px;color:var(--sub);font-variant-numeric:tabular-nums}
+.cfs-rpm-barra{height:8px;background:var(--panel2);border-radius:999px;overflow:hidden;margin-top:8px}
+.cfs-rpm-barra div{height:100%;background:var(--acento);transition:width .18s}
+.cfs-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding-top:4px}
+.cfs-bar .boton.marca-g{flex:2;min-width:180px;padding:15px 18px;font-size:17px}
+@media (min-width:700px),(orientation:landscape) and (min-width:540px){
+  .cfs-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .cfs-val{font-size:clamp(34px,6vw,58px)}
+}
 </style>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icono-192.png">
@@ -225,7 +281,10 @@ label.marca{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size
       <h1>Mi Sandero</h1>
       <div class="sub">Stepway 2011 · 1.6 8V (K7M A8) gasolina</div>
     </div>
-    <span class="pastilla" id="pastilla"><i></i><span>Sin conectar</span></span>
+    <div class="cab-der">
+      <button class="boton btn-tema" id="btnTema" onclick="alternarTema()" title="Cambiar tema claro / oscuro">🌙</button>
+      <span class="pastilla" id="pastilla"><i></i><span>Sin conectar</span></span>
+    </div>
   </header>
 
   <div class="grabando" id="barraGrab">
@@ -234,6 +293,7 @@ label.marca{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size
     <span class="cuanto" id="grabCuanto"></span>
     <div class="acciones">
       <button class="boton primario" onclick="abrir('vMarca')">⚑ Ha pasado algo</button>
+      <button class="boton" onclick="abrirCuadro()" title="Modo cuadro de conducción">⛶ Cuadro</button>
       <button class="boton" onclick="terminar()">Terminar</button>
     </div>
   </div>
@@ -264,7 +324,7 @@ label.marca{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size
         <b id="conProto">Conectado</b>
         <div class="mensaje-con" id="conInfo" style="margin-top:2px"></div>
       </div>
-      <button class="boton" onclick="pantallaCompleta()" title="Modo cuadro a pantalla completa">⛶ Cuadro</button>
+      <button class="boton" onclick="abrirCuadro()" title="Modo cuadro de conducción">⛶ Cuadro</button>
       <button class="boton" onclick="desconectar()">Desconectar</button>
     </div>
   </section>
@@ -369,6 +429,8 @@ label.marca{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size
   <!-- HISTORIAL -->
   <section class="pestana" id="p-historial">
     <div class="panel" id="panelAcumulado" hidden></div>
+    <div class="panel" id="panelEvolucion" hidden></div>
+    <div class="panel" id="panelComparar" hidden></div>
     <div class="panel">
       <div class="fila" style="justify-content:space-between">
         <h2 style="margin:0">Grabaciones</h2>
@@ -383,11 +445,13 @@ label.marca{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size
       <div class="barra-ses">
         <div class="pildoras" id="filtroSes">
           <button data-f="todas" class="activo" onclick="filtrarSesiones('todas')">Todas</button>
+          <button data-f="viajes" onclick="filtrarSesiones('viajes')">Viajes (&gt;5 min)</button>
           <button data-f="reales" onclick="filtrarSesiones('reales')">Solo coche real</button>
           <button data-f="avisos" onclick="filtrarSesiones('avisos')">Con avisos</button>
         </div>
         <span class="mensaje-con" id="cuentaSes" style="margin:0"></span>
       </div>
+      <div class="barra-comp" id="barraComp" hidden></div>
       <div id="sesiones" class="vacio">Cargando…</div>
     </div>
   </section>
@@ -434,6 +498,7 @@ label.marca{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size
       <div class="barra-prog"><div id="mantBarra" style="width:0%"></div></div>
       <p class="mensaje-con" id="textoMantenimiento" style="margin-top:0">Marca cada tarea al hacerla o pulsa en la etiqueta para alternar <b>Pendiente ↔ Comprado ✅</b>. Se guarda en <code>~/coche-obd/mantenimiento.json</code>.</p>
       <div class="aviso" id="mantAviso" hidden style="margin:0 0 10px"></div>
+      <div class="mant-banner" id="mantBannerHist" hidden></div>
       <div id="mantPendientes" class="vacio">Cargando…</div>
       <div class="fila" style="margin-top:10px">
         <input type="text" id="nuevaTareaTxt" placeholder="Añadir tarea pendiente (p. ej. Revisar presión ruedas)" style="flex:1">
@@ -497,6 +562,21 @@ label.marca{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size
   </div>
 </div>
 
+<div class="cuadro-fs" id="cuadroFs">
+  <div class="cfs-top">
+    <span class="punto" id="cfsPunto" hidden></span>
+    <b id="cfsEstado">Modo cuadro · Mi Sandero</b>
+    <span id="cfsGrab"></span>
+    <span id="cfsWake" style="margin-left:auto"></span>
+  </div>
+  <div class="cfs-grid" id="cfsGrid"></div>
+  <div class="cfs-bar">
+    <button class="boton primario marca-g" onclick="abrir('vMarca')">⚑ Ha pasado algo</button>
+    <button class="boton" id="btnTemaCfs" onclick="alternarTema()" title="Cambiar tema claro / oscuro">🌙</button>
+    <button class="boton" onclick="cerrarCuadro()">✕ Salir</button>
+  </div>
+</div>
+
 <div class="tostada" id="tostada"></div>
 
 <script src="motor.js"></script>
@@ -522,6 +602,7 @@ function mostrarPestana(nombre, cargar = true){  // cargar=false: quien la abre 
   document.querySelectorAll("#pestanas button").forEach(x => x.classList.toggle("activo", x.dataset.p===nombre));
   document.querySelectorAll(".pestana").forEach(p => p.classList.toggle("activa", p.id==="p-"+nombre));
   if (nombre==="directo") requestAnimationFrame(redibujarTodo);
+  if (nombre==="historial") requestAnimationFrame(redibujarTodo);
   if (!cargar) return;
   if (nombre==="historial") cargarSesiones();
   if (nombre==="rutas") cargarRutas();
@@ -643,13 +724,123 @@ async function subirAhora(){
 setTimeout(() => cargarClaude().catch(() => {}), 3000);
 setInterval(() => cargarClaude().catch(() => {}), 5 * 60 * 1000);
 
-function redibujarTodo(){
-  if (!ultimo) return;
-  for (const [k, x] of Object.entries(ultimo.valores || {})) dibujar(k, x.estado);
+let visoresActivos = {}, perfilActual = null, marcadorPerfil = null, mantCache = null;
+function temaActualEsOscuro(){
+  const t = document.documentElement.dataset.tema;
+  if (t === "oscuro") return true;
+  if (t === "claro") return false;
+  return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
-function pantallaCompleta(){
-  if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(()=>{});
-  else document.exitFullscreen?.().catch(()=>{});
+function aplicarTema(tema){
+  if (tema === "claro" || tema === "oscuro") {
+    document.documentElement.dataset.tema = tema;
+    guardado.poner("tema", tema);
+  } else {
+    delete document.documentElement.dataset.tema;
+  }
+  const osc = temaActualEsOscuro();
+  const ico = osc ? "☀️" : "🌙";
+  if ($("btnTema")) $("btnTema").textContent = ico;
+  if ($("btnTemaCfs")) $("btnTemaCfs").textContent = ico;
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute("content", osc ? "#0f1720" : "#f4f5f7");
+  requestAnimationFrame(redibujarTodo);
+}
+function alternarTema(){ aplicarTema(temaActualEsOscuro() ? "claro" : "oscuro"); }
+aplicarTema(guardado.leer("tema") || "");
+
+// Wake Lock: mantiene la pantalla encendida mientras está conectado, grabando o en modo cuadro
+let wakeLock = null, cuadroAbierto = false;
+async function pedirWakeLock(){
+  if (!("wakeLock" in navigator) || wakeLock || document.visibilityState !== "visible") return;
+  try {
+    wakeLock = await navigator.wakeLock.request("screen");
+    wakeLock.addEventListener("release", () => { wakeLock = null; actualizarIndicadorWake(); });
+    actualizarIndicadorWake();
+  } catch (e) {}
+}
+async function soltarWakeLock(){
+  if (!wakeLock) return;
+  try { await wakeLock.release(); } catch (e) {}
+  wakeLock = null;
+  actualizarIndicadorWake();
+}
+function actualizarIndicadorWake(){
+  const el = $("cfsWake");
+  if (el) el.textContent = wakeLock ? "🔒 Pantalla activa" : "";
+}
+function gestionarWakeLock(f){
+  const necesita = cuadroAbierto || f?.conexion?.estado === "conectado" || f?.grabacion?.activa;
+  if (necesita) pedirWakeLock(); else soltarWakeLock();
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") gestionarWakeLock(ultimo);
+});
+
+function abrirCuadro(){
+  cuadroAbierto = true;
+  $("cuadroFs").classList.add("si");
+  document.body.style.overflow = "hidden";
+  document.documentElement.requestFullscreen?.().catch(()=>{});
+  pedirWakeLock();
+  if (ultimo) pintarCuadroFs(ultimo);
+}
+function cerrarCuadro(){
+  cuadroAbierto = false;
+  $("cuadroFs").classList.remove("si");
+  document.body.style.overflow = "";
+  if (document.fullscreenElement) document.exitFullscreen?.().catch(()=>{});
+  gestionarWakeLock(ultimo);
+}
+document.addEventListener("keydown", e => { if (e.key === "Escape" && cuadroAbierto) cerrarCuadro(); });
+
+function pintarCuadroFs(f){
+  if (!cuadroAbierto || !f) return;
+  const g = f.grabacion || {};
+  $("cfsPunto").hidden = !g.activa;
+  $("cfsEstado").textContent = f.conexion?.estado === "conectado" ? "En directo" : "Sin conexión";
+  if (g.activa) {
+    const m = Math.floor(g.segundos / 60), s = g.segundos % 60;
+    $("cfsGrab").textContent = `· ${g.nombre} · ${m}:${String(s).padStart(2, "0")}`;
+  } else {
+    $("cfsGrab").textContent = "";
+  }
+  actualizarIndicadorWake();
+  const v = k => f.valores?.[k]?.v, est = k => f.valores?.[k]?.estado || "gris";
+  const vel = v("velocidad"), gpsV = v("gps_velocidad"), rpm = v("rpm"), temp = v("temp_motor"), bat = v("bateria");
+  const st = v("stft"), lt = v("ltft"), tot = (st != null && lt != null) ? st + lt : null;
+  const pc = x => x == null ? "–" : (x > 0 ? "+" : "") + String(Math.round(x * 10) / 10).replace(".", ",") + " %";
+  const nivMez = tot == null ? "gris" : Math.abs(tot) > 20 ? "rojo" : Math.abs(tot) > 10 ? "amarillo" : "verde";
+  const gasto = (vel || 0) >= 5 && v("consumo_l100") != null
+    ? [fmt("consumo_l100", v("consumo_l100")), "L/100", "Consumo actual"]
+    : [v("consumo_lh") != null ? fmt("consumo_lh", v("consumo_lh")) : "–", "L/h", "Consumo al ralentí"];
+  const rpmPct = rpm != null ? Math.min(100, Math.max(0, rpm / 6000 * 100)) : 0;
+  const rpmCol = rpm > 4500 ? "var(--rojo)" : rpm > 3500 ? "var(--amarillo)" : "var(--acento)";
+  const calorCritico = temp != null && temp >= 100;
+  const tempEst = temp == null ? "gris" : temp >= 100 ? "rojo" : temp >= 85 ? "verde" : "amarillo";
+  const gpsSub = gpsV != null ? `📍 GPS ${Math.round(gpsV)} km/h` : "Centralita";
+  const tarjetas = [
+    `<div class="cfs-card ${est("velocidad")}"><div class="cfs-etq">Velocidad</div><div class="cfs-val">${vel != null ? fmt("velocidad", vel) : "–"}<small>km/h</small></div><div class="cfs-sub">${gpsSub}</div></div>`,
+    `<div class="cfs-card ${est("rpm")}"><div class="cfs-etq">Revoluciones</div><div class="cfs-val">${rpm != null ? (rpm <= 300 ? "Parado" : fmt("rpm", rpm)) : "–"}${rpm != null && rpm > 300 ? "<small>rpm</small>" : ""}</div><div class="cfs-rpm-barra"><div style="width:${rpmPct}%;background:${rpmCol}"></div></div></div>`,
+    `<div class="cfs-card ${tempEst} ${calorCritico ? "alerta-calor" : ""}"><div class="cfs-etq">Temp. motor</div><div class="cfs-val">${temp != null ? fmt("temp_motor", temp) : "–"}<small>°C</small></div><div class="cfs-sub">${calorCritico ? "⚠️ ¡Temperatura alta!" : temp != null && temp < 80 ? "Motor calentando…" : "Objetivo 88–92 °C"}</div></div>`,
+    `<div class="cfs-card ${nivMez}"><div class="cfs-etq">Mezcla total</div><div class="cfs-val">${pc(tot)}</div><div class="cfs-sub">STFT ${pc(st)} · LTFT ${pc(lt)}</div></div>`,
+    `<div class="cfs-card ${est("consumo_lh")}"><div class="cfs-etq">${gasto[2]}</div><div class="cfs-val">${gasto[0]}<small>${gasto[1]}</small></div><div class="cfs-sub">${f.diagnostico?.consumo?.l100 != null ? `Media viaje: ${String(f.diagnostico.consumo.l100).replace(".",",")} L/100` : "–"}</div></div>`,
+    `<div class="cfs-card ${est("bateria")}"><div class="cfs-etq">Batería</div><div class="cfs-val">${bat != null ? fmt("bateria", bat) : "–"}<small>V</small></div><div class="cfs-sub">${bat != null ? (bat >= 13.4 ? "Alternador cargando ✓" : bat >= 12.2 ? "Sin carga alternador" : "⚠️ Voltaje bajo") : "–"}</div></div>`,
+  ];
+  $("cfsGrid").innerHTML = tarjetas.join("");
+}
+
+function redibujarTodo(){
+  if (ultimo) {
+    for (const [k, x] of Object.entries(ultimo.valores || {})) dibujar(k, x.estado);
+  }
+  if ($("p-historial")?.classList.contains("activa")) {
+    pintarEvolucion();
+    for (const fn of Object.values(visoresActivos)) fn();
+  }
+  if ($("p-rutas")?.classList.contains("activa") && perfilActual) {
+    pintarPerfil(perfilActual.d, perfilActual.ref, perfilActual.cursorIdx);
+  }
 }
 
 async function cargarPuertos(){
@@ -728,12 +919,20 @@ function hacerTarjetas(){
         <input type="text" inputmode="decimal" id="consumoReal" placeholder="p. ej. 9,5"> L/100 km
         <button class="boton" onclick="guardarConsumo()">Guardar</button>
         <span>(sirve para comparar con lo que ve el coche)</span></div>
+      <details style="margin-bottom:8px"><summary>🧮 Calcular desde un repostaje (litros y km)</summary>
+        <div class="repostaje" style="margin-top:8px">
+          Litros echados: <input type="text" inputmode="decimal" id="repLitros" placeholder="p. ej. 38,5" oninput="calcularRepostaje()">
+          · Km recorridos: <input type="text" inputmode="decimal" id="repKm" placeholder="p. ej. 410" oninput="calcularRepostaje()">
+          <b id="repPreview" style="color:var(--txt)"></b>
+          <button class="boton primario chico" id="btnAplicarRep" onclick="aplicarRepostaje()" disabled>Aplicar y guardar</button>
+        </div>
+      </details>
       <details style="margin-bottom:10px"><summary>Ajustes de calibración (factor de consumo y voltímetro)</summary>
         <div class="repostaje" style="margin-top:8px">
           Factor de cálculo de gasolina: <input type="text" inputmode="decimal" id="factorConsumo" placeholder="1,0">
           · Corrección batería: <input type="text" inputmode="decimal" id="corrBateria" placeholder="0,0"> V
           · Corrección velocidad: × <input type="text" inputmode="decimal" id="corrVelocidad" placeholder="1,0">
-          (<a href="/gps" target="_blank">calibrar con el GPS del móvil</a>)
+          ${window.MOTOR ? "<span>(el GPS del móvil calibra la velocidad automáticamente al conducir)</span>" : `(<a href="/gps" target="_blank">calibrar con el GPS del móvil</a>)`}
           <button class="boton chico" onclick="guardarCalibracion()">Guardar calibración</button>
         </div>
       </details>` : "";
@@ -853,6 +1052,8 @@ function pintar(f){
   }
   pintarVivoPrueba(f);
   pintarCuadroVivo(f);
+  pintarCuadroFs(f);
+  gestionarWakeLock(f);
   // valores
   if (!tarjetasHechas && Object.keys(DEF).length) hacerTarjetas();
   const hay = Object.keys(f.valores).length > 0;
@@ -917,6 +1118,28 @@ async function guardarConsumo(){
   const r = await api("/api/ajustes", {consumo_real: $("consumoReal").value.trim()});
   if (r.ok) { ajustesActuales = r.dato; sesionesVistas = ""; cargarSesiones(); }
   tostada(r.ok ? "Guardado. Lo comparo con lo que calcula el coche." : r.error);
+}
+function calcularRepostaje(){
+  const lit = parseFloat(($("repLitros")?.value || "").replace(",", "."));
+  const km = parseFloat(($("repKm")?.value || "").replace(",", "."));
+  const prev = $("repPreview"), btn = $("btnAplicarRep");
+  if (!prev || !btn) return null;
+  if (lit > 0 && km > 1) {
+    const l100 = Math.round(lit / km * 1000) / 10;
+    prev.textContent = `= ${String(l100).replace(".", ",")} L/100 km`;
+    btn.disabled = false;
+    return l100;
+  }
+  prev.textContent = "";
+  btn.disabled = true;
+  return null;
+}
+async function aplicarRepostaje(){
+  const l100 = calcularRepostaje();
+  if (l100 == null) return;
+  $("consumoReal").value = String(l100).replace(".", ",");
+  await guardarConsumo();
+  $("repLitros").value = ""; $("repKm").value = ""; calcularRepostaje();
 }
 async function guardarCalibracion(){
   const r = await api("/api/ajustes", {
@@ -1050,17 +1273,33 @@ function pintarResumen(r){
 }
 
 let listaSesionesCache = [], filtroSesActual = "todas", datosVisor = {};
+let evolMetrica = "temp", evolCursor = null, compararSel = [];
+
+function mezSesion(s){
+  const est = s.resumen?.estadisticas || {};
+  return est.mezcla_caliente?.media ?? est.correccion_total ?? null;
+}
+function esViajeReal(s){
+  if ((s.lector || "").includes("Simulador") || !s.resumen) return false;
+  const dur = s.resumen.estadisticas?.duracion_min || 0;
+  const km = s.resumen.consumo?.km || 0;
+  return dur >= 5 || km >= 2;
+}
 function botonesMovil(s){
   const c = JSON.stringify(s.carpeta).replace(/"/g, "&quot;");
+  const compActivo = compararSel.includes(s.carpeta);
   return `<button class="boton chico" onclick="verGraficas(${c})">📈 Gráficas</button> `
     + ((s.archivos || []).includes("ruta.json") ? `<button class="boton chico" onclick="irARuta(${c})">🗺️ Ruta</button> ` : "")
+    + (s.resumen ? `<button class="boton chico ${compActivo ? "primario" : ""}" onclick="seleccionarComparar(${c})">⚖ ${compActivo ? "Elegida" : "Comparar"}</button> ` : "")
     + `<button class="boton chico" onclick="MOTOR.compartir(${c})">Compartir</button> <button class="boton chico" onclick="MOTOR.bajar(${c})">⬇ .zip</button>`
     + (s.fin ? ` <button class="boton chico" onclick="MOTOR.borrarGrabacion(${c})">Borrar</button>` : "");
 }
 function botonesMac(s){
   const c = JSON.stringify(s.carpeta).replace(/"/g, "&quot;");
+  const compActivo = compararSel.includes(s.carpeta);
   return `<button class="boton chico" onclick="verGraficas(${c})">📈 Gráficas</button> `
     + (s.archivos.includes("ruta.json") ? `<button class="boton chico" onclick="irARuta(${c})">🗺️ Ruta</button> ` : "")
+    + (s.resumen ? `<button class="boton chico ${compActivo ? "primario" : ""}" onclick="seleccionarComparar(${c})">⚖ ${compActivo ? "Elegida" : "Comparar"}</button> ` : "")
     + s.archivos.map(a => `<a href="/registros/${encodeURIComponent(s.carpeta)}/${encodeURIComponent(a)}">⬇ ${esc(a)}</a>`).join("")
     + (s.fin ? `<button class="boton chico" onclick="borrarSesionMac(${c})" title="Borrar grabación">🗑 Borrar</button>` : "");
 }
@@ -1109,17 +1348,289 @@ function pintarAcumulado(lista){
   p.innerHTML = `<h2 style="margin-bottom:8px">Resumen acumulado de tu Sandero</h2>
     <div class="cifras" style="margin-bottom:0">${cajas.map(([v,t]) => `<div><b>${v}</b><span>${t}</span></div>`).join("")}</div>${compHtml}`;
 }
-function recargarSesiones(){ sesionesVistas = ""; cargarSesiones(); }
+
+// --- Gráfica de evolución entre viajes (antes y después de intervenciones) ---
+function elegirMetricaEvol(m){ evolMetrica = m; evolCursor = null; pintarEvolucion(); }
+function pintarEvolucion(){
+  const p = $("panelEvolucion");
+  if (!p) return;
+  const viajes = (listaSesionesCache || []).filter(esViajeReal).slice().reverse();
+  const pts = viajes.map(s => {
+    const est = s.resumen?.estadisticas || {}, c = s.resumen?.consumo || {};
+    const mez = mezSesion(s);
+    const lt = est.ltft?.media ?? null;
+    const temp = est.temp_motor_en_marcha ?? null;
+    const l100 = (c.km >= 2 && c.l100 != null) ? c.l100 : null;
+    const dia = (s.inicio || "").slice(0, 10);
+    return {s, dia, temp, mez, lt, l100, km: c.km, dur: est.duracion_min};
+  });
+  const hayTemp = pts.filter(x => x.temp != null).length >= 2;
+  const hayMez = pts.filter(x => x.mez != null || x.lt != null).length >= 2;
+  const hayL100 = pts.filter(x => x.l100 != null).length >= 2;
+  if (!hayTemp && !hayMez && !hayL100) { p.hidden = true; return; }
+  if (evolMetrica === "temp" && !hayTemp) evolMetrica = hayMez ? "mezcla" : "l100";
+  if (evolMetrica === "mezcla" && !hayMez) evolMetrica = hayTemp ? "temp" : "l100";
+  if (evolMetrica === "l100" && !hayL100) evolMetrica = hayTemp ? "temp" : "mezcla";
+  p.hidden = false;
+
+  const activos = pts.filter(x => evolMetrica === "temp" ? x.temp != null : evolMetrica === "mezcla" ? (x.mez != null || x.lt != null) : x.l100 != null);
+  const ley = evolMetrica === "temp"
+    ? `<span style="color:#ef4444">● Temp. en carretera (°C)</span><span>- - Objetivo termostato (89 °C)</span>`
+    : evolMetrica === "mezcla"
+    ? `<span style="color:#ef4444">● Mezcla en caliente (%)</span><span style="color:#8b5cf6">● LTFT medio (%)</span><span>- - Referencia 0 % / +10 % / +20 %</span>`
+    : `<span style="color:#2563eb">● Consumo (L/100 km)</span>${ajustesActuales.consumo_real ? `<span>- - Tus repostajes (${String(ajustesActuales.consumo_real).replace(".",",")} L/100)</span>` : ""}`;
+
+  p.innerHTML = `<div class="evol-cab">
+      <h2 style="margin:0">Evolución entre viajes</h2>
+      <div class="pildoras">
+        <button class="${evolMetrica==="temp"?"activo":""}" onclick="elegirMetricaEvol('temp')" ${hayTemp?"":"disabled"}>🌡 Temp.</button>
+        <button class="${evolMetrica==="mezcla"?"activo":""}" onclick="elegirMetricaEvol('mezcla')" ${hayMez?"":"disabled"}>⚖️ Mezcla</button>
+        <button class="${evolMetrica==="l100"?"activo":""}" onclick="elegirMetricaEvol('l100')" ${hayL100?"":"disabled"}>⛽ Consumo</button>
+      </div>
+    </div>
+    <div class="evol-info" id="evolInfo">Toca o pasa el ratón por la gráfica para ver cada viaje (${activos.length} salidas reales).</div>
+    <canvas class="evol-canvas" id="cvEvol"></canvas>
+    <div class="evol-leyenda">${ley}<span>┃ Intervención de mantenimiento</span></div>`;
+
+  const cv = $("cvEvol");
+  if (!cv || !cv.clientWidth) return;
+  // Calcular marcas de mantenimiento dentro del rango de fechas
+  const dMin = activos[0].dia, dMax = activos[activos.length - 1].dia;
+  const marcasMant = [];
+  for (const h of (mantCache?.historial || [])) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(h.fecha || "")) continue;
+    if (h.fecha < dMin || h.fecha > dMax) continue;
+    // Posición fraccional respecto a los índices de viajes
+    let pos = null;
+    const primeroIgualODespues = activos.findIndex(x => x.dia >= h.fecha);
+    if (primeroIgualODespues === 0) pos = 0;
+    else if (primeroIgualODespues > 0) pos = primeroIgualODespues - 0.5;
+    if (pos != null) {
+      const resumen = (h.items || [])[0] || "Mantenimiento";
+      const corta = resumen.replace(/^Cambio\s+(de\s+)?/i, "").slice(0, 18);
+      marcasMant.push({pos, fecha: h.fecha, texto: `🔧 ${h.fecha.slice(8,10)}/${h.fecha.slice(5,7)} ${corta}`});
+    }
+  }
+
+  const dibujarEvol = idx => {
+    evolCursor = idx;
+    const dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight || 190;
+    if (!W) return;
+    cv.width = W * dpr; cv.height = H * dpr;
+    const ctx = cv.getContext("2d"); ctx.scale(dpr, dpr);
+    const est = getComputedStyle(document.documentElement);
+    const cSub = est.getPropertyValue("--sub").trim() || "#666";
+    const cLin = est.getPropertyValue("--linea").trim() || "#ddd";
+    const cTxt = est.getPropertyValue("--txt").trim() || "#111";
+    const cVer = est.getPropertyValue("--verde").trim() || "#15904f";
+    const padL = 42, padR = 14, padT = 22, padB = 24;
+    const aw = W - padL - padR, ah = H - padT - padB;
+    const n = activos.length;
+    const xPos = i => padL + (n === 1 ? aw / 2 : i / (n - 1) * aw);
+
+    let vals = [], refs = [];
+    if (evolMetrica === "temp") {
+      vals = activos.map(x => x.temp);
+      refs = [{v: 89, col: cVer, etq: "89 °C"}];
+    } else if (evolMetrica === "mezcla") {
+      vals = activos.flatMap(x => [x.mez, x.lt]).filter(v => v != null);
+      refs = [{v: 0, col: cSub, etq: "0 %"}, {v: 10, col: "#b07800", etq: "+10 %"}, {v: 20, col: "#ef4444", etq: "+20 %"}];
+    } else {
+      vals = activos.map(x => x.l100);
+      if (ajustesActuales.consumo_real) refs = [{v: ajustesActuales.consumo_real, col: cVer, etq: `${String(ajustesActuales.consumo_real).replace(".",",")}`}];
+    }
+    let min = Math.min(...vals, ...(evolMetrica === "temp" ? [76, 89] : evolMetrica === "mezcla" ? [0] : []));
+    let max = Math.max(...vals, ...(evolMetrica === "temp" ? [93] : evolMetrica === "mezcla" ? [22] : []));
+    if (max - min < 2) { max += 2; min -= 2; }
+    const margen = (max - min) * 0.1;
+    min -= margen; max += margen;
+    const yPos = v => padT + (1 - (v - min) / (max - min)) * ah;
+
+    // rejilla base + referencias
+    ctx.font = "11px system-ui, sans-serif";
+    ctx.strokeStyle = cLin; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(padL, padT); ctx.lineTo(padL, H - padB); ctx.lineTo(W - padR, H - padB); ctx.stroke();
+
+    for (const r of refs) {
+      if (r.v < min || r.v > max) continue;
+      const y = yPos(r.v);
+      ctx.save(); ctx.strokeStyle = r.col; ctx.globalAlpha = 0.65; ctx.setLineDash([5, 4]); ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+      ctx.restore();
+      ctx.fillStyle = r.col;
+      ctx.fillText(r.etq, W - padR - ctx.measureText(r.etq).width - 2, y - 3);
+    }
+
+    // marcas de mantenimiento
+    for (const m of marcasMant) {
+      const mx = xPos(m.pos);
+      ctx.save(); ctx.strokeStyle = "#f59e0b"; ctx.setLineDash([4, 3]); ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(mx, padT - 4); ctx.lineTo(mx, H - padB); ctx.stroke();
+      ctx.restore();
+      ctx.fillStyle = "#f59e0b";
+      const tw = ctx.measureText(m.texto).width;
+      ctx.fillText(m.texto, Math.max(padL, Math.min(W - padR - tw, mx - tw / 2)), 13);
+    }
+
+    const pintarSerie = (getter, col, grosor) => {
+      ctx.strokeStyle = col; ctx.lineWidth = grosor; ctx.lineJoin = "round"; ctx.beginPath();
+      let ini = false;
+      activos.forEach((x, i) => {
+        const v = getter(x); if (v == null) return;
+        const px = xPos(i), py = yPos(v);
+        if (!ini) { ctx.moveTo(px, py); ini = true; } else ctx.lineTo(px, py);
+      });
+      ctx.stroke();
+      activos.forEach((x, i) => {
+        const v = getter(x); if (v == null) return;
+        ctx.fillStyle = col; ctx.beginPath(); ctx.arc(xPos(i), yPos(v), idx === i ? 5 : 3.2, 0, Math.PI * 2); ctx.fill();
+      });
+    };
+
+    if (evolMetrica === "temp") pintarSerie(x => x.temp, "#ef4444", 2.2);
+    else if (evolMetrica === "mezcla") {
+      pintarSerie(x => x.lt, "#8b5cf6", 1.8);
+      pintarSerie(x => x.mez, "#ef4444", 2.2);
+    } else pintarSerie(x => x.l100, "#2563eb", 2.2);
+
+    // cursor vertical
+    if (idx != null && activos[idx]) {
+      const cx = xPos(idx);
+      ctx.save(); ctx.strokeStyle = cTxt; ctx.globalAlpha = 0.35; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(cx, padT); ctx.lineTo(cx, H - padB); ctx.stroke();
+      ctx.restore();
+    }
+
+    // etiquetas ejes Y y X
+    ctx.fillStyle = cSub;
+    const ud = evolMetrica === "temp" ? "°" : evolMetrica === "mezcla" ? "%" : "";
+    ctx.fillText(`${Math.round(max)}${ud}`, 2, padT + 6);
+    ctx.fillText(`${Math.round((min + max) / 2)}${ud}`, 2, padT + ah / 2 + 4);
+    ctx.fillText(`${Math.round(min)}${ud}`, 2, H - padB);
+
+    const fmtDia = d => d ? `${d.slice(8,10)}/${d.slice(5,7)}` : "";
+    ctx.fillText(fmtDia(activos[0].dia), padL, H - 6);
+    if (n > 2) {
+      const mDia = fmtDia(activos[Math.floor(n / 2)].dia);
+      ctx.fillText(mDia, xPos(Math.floor(n / 2)) - ctx.measureText(mDia).width / 2, H - 6);
+    }
+    const uDia = fmtDia(activos[n - 1].dia);
+    ctx.fillText(uDia, W - padR - ctx.measureText(uDia).width, H - 6);
+
+    const info = $("evolInfo");
+    if (info && idx != null && activos[idx]) {
+      const it = activos[idx], cArg = JSON.stringify(it.s.carpeta).replace(/"/g, "&quot;");
+      const fTxt = new Date(it.s.inicio).toLocaleString("es-ES", {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"});
+      const pc = v => v == null ? "–" : `${v > 0 ? "+" : ""}${n1(v)} %`;
+      info.innerHTML = `<b>${esc(fTxt)}</b>${it.km ? ` · ${n1(it.km)} km` : ""}${it.temp != null ? ` · 🌡 <b>${Math.round(it.temp)} °C</b>` : ""}${it.mez != null ? ` · Mezcla <b>${pc(it.mez)}</b>` : ""}${it.lt != null ? ` · LTFT <b>${pc(it.lt)}</b>` : ""}${it.l100 != null ? ` · ⛽ <b>${n1(it.l100)} L/100</b>` : ""} <button class="boton chico" style="margin-left:auto" onclick="irAGraficasSesion(${cArg})">📈 Abrir viaje</button>`;
+    }
+  };
+  dibujarEvol(evolCursor != null && evolCursor < activos.length ? evolCursor : activos.length - 1);
+  const mover = ev => {
+    const rect = cv.getBoundingClientRect();
+    const x = (ev.touches ? ev.touches[0].clientX : ev.clientX) - rect.left;
+    const padL = 42, padR = 14, aw = Math.max(1, rect.width - padL - padR);
+    const i = Math.max(0, Math.min(activos.length - 1, Math.round((x - padL) / aw * (activos.length - 1))));
+    dibujarEvol(i);
+  };
+  cv.onmousemove = mover;
+  cv.ontouchmove = mover;
+  cv.ontouchstart = mover;
+}
+
+// --- Comparador de 2 viajes lado a lado ---
+function seleccionarComparar(carpeta){
+  if (compararSel.includes(carpeta)) {
+    compararSel = compararSel.filter(x => x !== carpeta);
+  } else {
+    if (compararSel.length >= 2) compararSel = [compararSel[1], carpeta];
+    else compararSel.push(carpeta);
+  }
+  pintarBarraYComparador();
+  pintarListaSesiones();
+}
+function cancelarComparar(){
+  compararSel = [];
+  pintarBarraYComparador();
+  pintarListaSesiones();
+}
+function pintarBarraYComparador(){
+  const barra = $("barraComp"), panel = $("panelComparar");
+  if (!barra || !panel) return;
+  if (compararSel.length === 1) {
+    const sA = listaSesionesCache.find(x => x.carpeta === compararSel[0]);
+    const fA = sA ? fechaCorta(sA.inicio) : compararSel[0];
+    barra.hidden = false;
+    barra.innerHTML = `<span>⚖ <b>Comparando:</b> ${esc(fA)} · pulsa <b>⚖ Comparar</b> en otra grabación para verlas lado a lado.</span>
+      <div class="acciones"><button class="boton chico" onclick="cancelarComparar()">Cancelar</button></div>`;
+    panel.hidden = true;
+    return;
+  }
+  barra.hidden = true;
+  if (compararSel.length < 2) { panel.hidden = true; return; }
+  const s1 = listaSesionesCache.find(x => x.carpeta === compararSel[0]);
+  const s2 = listaSesionesCache.find(x => x.carpeta === compararSel[1]);
+  if (!s1 || !s2) { panel.hidden = true; return; }
+  // Ordenar: A = más antigua (antes), B = más reciente (después)
+  const [a, b] = (s1.inicio || "") <= (s2.inicio || "") ? [s1, s2] : [s2, s1];
+  const eA = a.resumen?.estadisticas || {}, eB = b.resumen?.estadisticas || {};
+  const cA = a.resumen?.consumo || {}, cB = b.resumen?.consumo || {};
+  const mA = mezSesion(a), mB = mezSesion(b);
+
+  const filas = [
+    ["Duración", eA.duracion_min, eB.duracion_min, " min", 1, "neu"],
+    ["Distancia", cA.km, cB.km, " km", 1, "neu"],
+    ["Consumo", cA.l100, cB.l100, " L/100", 1, "menor"],
+    ["Temp. en carretera", eA.temp_motor_en_marcha, eB.temp_motor_en_marcha, " °C", 0, "cerca89"],
+    ["Tiempo hasta 80 °C", eA.min_hasta_80C, eB.min_hasta_80C, " min", 1, "menor"],
+    ["Mezcla en caliente", mA, mB, " %", 1, "cerca0", true],
+    ["LTFT medio", eA.ltft?.media, eB.ltft?.media, " %", 1, "cerca0", true],
+    ["Ralentí caliente", eA.ralenti_caliente_rpm?.media, eB.ralenti_caliente_rpm?.media, " rpm", 0, "neu"],
+    ["Vacío MAP ralentí", eA.map_ralenti?.media, eB.map_ralenti?.media, " kPa", 1, "menor"],
+    ["Batería en marcha", eA.bateria_en_marcha?.media, eB.bateria_en_marcha?.media, " V", 2, "neu"],
+  ].filter(f => f[1] != null || f[2] != null);
+
+  const fVal = (v, ud, dec, signo) => v == null ? "–" : `${signo && v > 0 ? "+" : ""}${Number(v).toFixed(dec).replace(".", ",")}${ud}`;
+  const fDelta = (va, vb, ud, dec, modo) => {
+    if (va == null || vb == null) return `<span class="delta-neu">–</span>`;
+    const d = vb - va;
+    if (Math.abs(d) < (dec === 0 ? 0.5 : 0.05)) return `<span class="delta-neu">=</span>`;
+    let cl = "delta-neu";
+    if (modo === "menor") cl = d < 0 ? "delta-bien" : "delta-mal";
+    else if (modo === "cerca0") cl = Math.abs(vb) < Math.abs(va) ? "delta-bien" : "delta-mal";
+    else if (modo === "cerca89") cl = Math.abs(vb - 89) < Math.abs(va - 89) ? "delta-bien" : "delta-mal";
+    return `<span class="${cl}">${d > 0 ? "+" : ""}${d.toFixed(dec).replace(".", ",")}${ud}</span>`;
+  };
+
+  panel.hidden = false;
+  panel.innerHTML = `<div class="fila" style="justify-content:space-between;margin-bottom:6px">
+      <h2 style="margin:0">⚖ Comparación de viajes (Antes → Después)</h2>
+      <button class="boton chico" onclick="cancelarComparar()">✕ Cerrar</button>
+    </div>
+    <div class="tabla-scroll"><table class="tabla-comp">
+      <thead><tr><th>Métrica</th><th>Antes · ${esc(fechaCorta(a.inicio))}</th><th>Después · ${esc(fechaCorta(b.inicio))}</th><th>Cambio</th></tr></thead>
+      <tbody>${filas.map(([nom, va, vb, ud, dec, modo, signo]) =>
+        `<tr><td>${nom}</td><td>${fVal(va, ud, dec, signo)}</td><td><b>${fVal(vb, ud, dec, signo)}</b></td><td>${fDelta(va, vb, ud, dec, modo)}</td></tr>`).join("")}
+      </tbody>
+    </table></div>`;
+  panel.scrollIntoView({behavior: "smooth", block: "start"});
+}
+
+function recargarSesiones(){ sesionesVistas = ""; datosVisor = {}; visoresActivos = {}; cargarSesiones(); }
 async function cargarSesiones(){
   const lista = await api("/api/sesiones");
   const clave = JSON.stringify(lista); if (clave===sesionesVistas) return; sesionesVistas = clave;
   listaSesionesCache = lista;
   pintarAcumulado(lista);
+  pintarEvolucion();
+  pintarBarraYComparador();
   pintarListaSesiones();
 }
 function pintarListaSesiones(){
+  visoresActivos = {};
   const todas = listaSesionesCache || [];
   const lista = todas.filter(s => {
+    if (filtroSesActual === "viajes") return esViajeReal(s);
     if (filtroSesActual === "reales") return !(s.lector || "").includes("Simulador");
     if (filtroSesActual === "avisos") return (s.resumen?.hallazgos || []).some(h => h.nivel === "rojo" || h.nivel === "amarillo");
     return true;
@@ -1128,21 +1639,36 @@ function pintarListaSesiones(){
   if (!lista.length) { $("sesiones").className = "vacio"; $("sesiones").innerHTML = "No hay grabaciones con este filtro."; return; }
   $("sesiones").className = "";
   $("sesiones").innerHTML = lista.map(s => {
-    const r = s.resumen, n = {rojo:0, amarillo:0, verde:0};
+    const r = s.resumen, est = r?.estadisticas || {}, n = {rojo:0, amarillo:0, verde:0};
     (r?.hallazgos||[]).forEach(h => { if (n[h.nivel]!==undefined) n[h.nivel]++; });
     const fecha = new Date(s.inicio).toLocaleString("es-ES", {weekday:"short", day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"});
     const demo = (s.lector||"").includes("Simulador") ? ` <span class="estado gris">Simulador</span>` : "";
     const kmTxt = r?.consumo?.km ? ` · ${String(r.consumo.km).replace(".",",")} km` : "";
     const l100Txt = r?.consumo?.l100 ? ` · ${String(r.consumo.l100).replace(".",",")} L/100` : "";
+    const tCarr = est.temp_motor_en_marcha;
+    const tEst = tCarr == null ? "" : tCarr >= 100 || tCarr < 75 ? "rojo" : tCarr < 85 ? "amarillo" : "verde";
+    const tChip = tCarr != null ? `<span class="estado ${tEst}" title="Temperatura media en carretera">🌡 ${Math.round(tCarr)} °C</span>` : "";
+    const mez = mezSesion(s);
+    const mEst = mez == null ? "" : Math.abs(mez) > 20 ? "rojo" : Math.abs(mez) > 10 ? "amarillo" : "verde";
+    const mChip = mez != null ? `<span class="estado ${mEst}" title="Mezcla media en caliente">⚖️ ${mez > 0 ? "+" : ""}${n1(mez)} %</span>` : "";
     const notas = (s.notas || []).filter(x => x.t > 0);
     const notasHtml = notas.length ? `<div class="mensaje-con" style="margin:4px 0">⚑ Marcas: ${notas.map(x => `<b>${esc(x.texto)}</b> (${Math.round(x.t)}s)`).join(" · ")}</div>` : "";
-    return `<div class="sesion" id="ses-${esc(s.carpeta)}"><div class="cab"><b>${esc(s.prueba?.nombre||"Grabación")}</b>${demo}<span>${fecha}${r?.estadisticas?.duracion_min!=null?` · ${String(r.estadisticas.duracion_min).replace(".",",")} min`:""}${kmTxt}${l100Txt}${s.fin?"":" · en curso"}</span></div>
+    const enComp = compararSel.includes(s.carpeta) ? " en-comp" : "";
+    return `<div class="sesion${enComp}" id="ses-${esc(s.carpeta)}"><div class="cab"><b>${esc(s.prueba?.nombre||"Grabación")}</b>${demo}<span>${fecha}${est.duracion_min!=null?` · ${String(est.duracion_min).replace(".",",")} min`:""}${kmTxt}${l100Txt}${s.fin?"":" · en curso"}</span></div>
       ${notasHtml}
-      ${r ? `<div class="chips">${n.rojo?`<span class="estado rojo">${n.rojo} revisar</span>`:""}${n.amarillo?`<span class="estado amarillo">${n.amarillo} ojo</span>`:""}${n.verde?`<span class="estado verde">${n.verde} bien</span>`:""}</div>
+      ${r ? `<div class="chips">${tChip}${mChip}${n.rojo?`<span class="estado rojo">${n.rojo} revisar</span>`:""}${n.amarillo?`<span class="estado amarillo">${n.amarillo} ojo</span>`:""}${n.verde?`<span class="estado verde">${n.verde} bien</span>`:""}</div>
         <details><summary>Ver revisión (${(r.hallazgos||[]).length} puntos)</summary>${htmlHallazgos(r.hallazgos)}</details>` : ""}
       <div class="fila" style="margin-top:8px;gap:8px">${window.MOTOR ? botonesMovil(s) : botonesMac(s)}</div>
       <div id="graf-${esc(s.carpeta)}" hidden></div></div>`;
   }).join("");
+}
+async function irAGraficasSesion(carpeta){
+  mostrarPestana("historial", false);
+  await cargarSesiones();
+  if (!$("ses-" + carpeta)) filtrarSesiones("todas");
+  const el = $("ses-" + carpeta);
+  if (el) el.scrollIntoView({behavior: "smooth", block: "start"});
+  await verGraficas(carpeta, true);
 }
 
 async function borrarSesionMac(carpeta){
@@ -1176,16 +1702,25 @@ async function importarArchivos(files){
 // --- Visor interactivo de gráficas de una sesión ---
 const DEFINICION_GRAFICAS = [
   {id:"g1", titulo:"Motor y velocidad", series:[["rpm","Revoluciones","rpm","#3b82f6",0],["velocidad","Velocidad","km/h","#10b981",0]]},
-  {id:"g2", titulo:"Temperatura y admisión (MAP)", series:[["temp_motor","Temp. motor","°C","#ef4444",0],["map","Vacío MAP","kPa","#f59e0b",0]]},
-  {id:"g3", titulo:"Correcciones de mezcla", series:[["ltft","Aprendida (LTFT)","%","#8b5cf6",1],["stft","Rápida (STFT)","%","#06b6d4",1]]},
-  {id:"g4", titulo:"Sondas lambda (delantera y trasera)", series:[["sonda1","Sonda 1 (del.)","V","#2563eb",2],["sonda2","Sonda 2 (tras.)","V","#f97316",2]], fijo:[0,1]},
+  {id:"g2", titulo:"Temperatura y admisión (MAP)", series:[["temp_motor","Temp. motor","°C","#ef4444",0],["map","Vacío MAP","kPa","#f59e0b",0]],
+    refs:[{v:89, serie:0, col:"#15904f", etq:"89 °C"}]},
+  {id:"g3", titulo:"Correcciones de mezcla (misma escala)", series:[["mezcla_total","Mezcla total","%","#ef4444",1],["ltft","Aprendida (LTFT)","%","#8b5cf6",1],["stft","Rápida (STFT)","%","#06b6d4",1]],
+    comun:true, refs:[{v:0, col:"#7a8491", etq:"0%"},{v:10, col:"#b07800", etq:"+10%"},{v:-10, col:"#b07800", etq:"-10%"},{v:20, col:"#ef4444", etq:"+20%"},{v:-20, col:"#ef4444", etq:"-20%"}]},
+  {id:"g4", titulo:"Sondas lambda (delantera y trasera)", series:[["sonda1","Sonda 1 (del.)","V","#2563eb",2],["sonda2","Sonda 2 (tras.)","V","#f97316",2]],
+    fijo:[0,1], comun:true, refs:[{v:0.45, col:"#7a8491", etq:"0,45V"}]},
+  {id:"g7", titulo:"Batería y alternador", series:[["bateria","Batería","V","#eab308",2]],
+    si:"bateria", rangoMin:[12.0,14.6], refs:[{v:12.4, col:"#b07800", etq:"12,4V"},{v:13.8, col:"#15904f", etq:"13,8V"},{v:14.4, col:"#ef4444", etq:"14,4V"}]},
   {id:"g5", titulo:"Velocidad: centralita y GPS del móvil", series:[["velocidad","Centralita","km/h","#10b981",0],["gps_velocidad","GPS","km/h","#e11d48",0]], comun:true, si:"gps_velocidad"},
   {id:"g6", titulo:"Altura (GPS del móvil) y velocidad", series:[["gps_alt","Altura","m","#a16207",0],["velocidad","Velocidad","km/h","#10b981",0]], si:"gps_alt"},
 ];
-async function verGraficas(carpeta){
+async function verGraficas(carpeta, forzarAbrir = false){
   const cont = $("graf-" + carpeta);
   if (!cont) return;
-  if (!cont.hidden) { cont.hidden = true; return; }
+  if (!cont.hidden && !forzarAbrir) {
+    cont.hidden = true;
+    delete visoresActivos[carpeta];
+    return;
+  }
   cont.hidden = false;
   cont.innerHTML = `<div class="visor-graf">Cargando gráficas…</div>`;
   const d = datosVisor[carpeta] || (datosVisor[carpeta] = await api("/api/sesion/" + encodeURIComponent(carpeta)));
@@ -1193,83 +1728,215 @@ async function verGraficas(carpeta){
     cont.innerHTML = `<div class="visor-graf">No hay suficientes datos para dibujar gráficas.</div>`;
     return;
   }
+  // Calcular serie virtual mezcla_total = STFT + LTFT
+  if (!d.series.mezcla_total && d.series.stft && d.series.ltft) {
+    d.series.mezcla_total = d.series.t.map((_, i) => {
+      const st = d.series.stft[i], lt = d.series.ltft[i];
+      return (st != null && lt != null) ? Math.round((st + lt) * 10) / 10 : null;
+    });
+  }
   const notas = (d.sesion?.notas || []).filter(n => n.t > 0);
+  const ts = d.series.t, durS = ts[ts.length - 1] - ts[0];
+  const hayFrio = durS > 320;
+  const hayCaliente = (d.series.temp_motor || []).some(v => v != null && v >= 75) && durS > 120;
+  const graficasVisibles = DEFINICION_GRAFICAS.filter(g => !g.si || (d.series[g.si] || []).some(v => v != null));
   cont.innerHTML = `<div class="visor-graf">
-    <div class="visor-cursor" id="cur-${carpeta}">Mueve el dedo o el ratón por las gráficas para ver cada instante (${d.total_filas} lecturas).</div>
-    ${DEFINICION_GRAFICAS.filter(g => !g.si || d.series[g.si]).map(g => `<div class="graf-caja">
+    <div class="visor-barra">
+      <div class="pildoras" id="zoom-${carpeta}">
+        <button data-z="todo" class="activo">Todo</button>
+        ${hayFrio ? `<button data-z="frio">Primeros 5 min</button>` : ""}
+        ${hayCaliente ? `<button data-z="caliente">En caliente</button>` : ""}
+      </div>
+      <span class="mensaje-con" style="margin:0">${d.total_filas} lecturas · ${Math.round(durS / 60 * 10) / 10} min</span>
+    </div>
+    <div class="visor-cursor" id="cur-${carpeta}">Mueve el dedo o el ratón por las gráficas para ver cada instante.</div>
+    ${graficasVisibles.map(g => `<div class="graf-caja">
       <div class="graf-cab"><span>${esc(g.titulo)}</span>
         <span>${g.series.map(([k,nom,ud,col]) => `<span style="color:${col};margin-left:10px">● ${esc(nom)} (${ud})</span>`).join("")}</span>
       </div>
       <canvas class="graf-s" id="cv-${carpeta}-${g.id}" data-g="${g.id}"></canvas>
     </div>`).join("")}
   </div>`;
-  requestAnimationFrame(() => iniciarVisor(carpeta, d, notas));
+  requestAnimationFrame(() => iniciarVisor(carpeta, d, notas, graficasVisibles));
 }
-function iniciarVisor(carpeta, d, notas){
-  const ts = d.series.t;
-  const n = ts.length;
+function iniciarVisor(carpeta, d, notas, graficasVisibles){
+  const ts = d.series.t, nTotal = ts.length;
+  let zoom = "todo", i0 = 0, i1 = nTotal - 1, idxActual = nTotal - 1;
+
+  const calcularRango = modo => {
+    zoom = modo;
+    if (modo === "frio") {
+      i0 = 0;
+      const fin = ts.findIndex(t => t - ts[0] >= 300);
+      i1 = fin > 1 ? fin : nTotal - 1;
+    } else if (modo === "caliente") {
+      const temps = d.series.temp_motor || [];
+      const ini = temps.findIndex(v => v != null && v >= 75);
+      i0 = (ini >= 0 && ini < nTotal - 2) ? ini : Math.floor(nTotal / 3);
+      i1 = nTotal - 1;
+    } else {
+      i0 = 0; i1 = nTotal - 1;
+    }
+    idxActual = Math.max(i0, Math.min(i1, idxActual));
+  };
+
   const pintarTodas = idx => {
-    for (const g of DEFINICION_GRAFICAS) {
+    idxActual = idx;
+    const estDoc = getComputedStyle(document.documentElement);
+    const cSub = estDoc.getPropertyValue("--sub").trim() || "#666";
+    const cTxt = estDoc.getPropertyValue("--txt").trim() || "#111";
+    const tIni = ts[i0], tFin = ts[i1], spanIdx = Math.max(1, i1 - i0);
+    const padL = 36, padR = 36, padT = 14, padB = 8;
+
+    graficasVisibles.forEach((g, gi) => {
       const c = $(`cv-${carpeta}-${g.id}`);
-      if (!c) continue;
+      if (!c) return;
       const dpr = window.devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight;
-      if (!w) continue;
+      if (!w) return;
       c.width = w * dpr; c.height = h * dpr;
       const ctx = c.getContext("2d"); ctx.scale(dpr, dpr);
-      // líneas de marcas
-      if (notas.length && ts[n-1] > ts[0]) {
-        ctx.strokeStyle = "rgba(239,68,68,0.5)"; ctx.setLineDash([4, 3]);
-        for (const m of notas) {
-          const x = (m.t - ts[0]) / (ts[n-1] - ts[0]) * w;
-          ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
-        }
-        ctx.setLineDash([]);
-      }
-      g.series.forEach(([k, _nom, _ud, col]) => {
+      const aw = Math.max(10, w - padL - padR), ah = Math.max(10, h - padT - padB);
+      const xDeI = i => padL + (i - i0) / spanIdx * aw;
+      ctx.font = "10px system-ui, sans-serif";
+
+      // Calcular min/max de cada serie en el tramo visible
+      const rangos = g.series.map(([k]) => {
         const arr = d.series[k];
-        if (!arr) return;
-        const vals = arr.filter(v => v != null);
-        if (vals.length < 2) return;
-        // escala común (velocidad y GPS): si no, cada línea iría a su escala y no se podrían comparar
-        const todos = g.comun ? g.series.flatMap(([k2]) => (d.series[k2] || []).filter(v => v != null)) : vals;
-        let min = g.fijo ? g.fijo[0] : Math.min(...todos);
-        let max = g.fijo ? g.fijo[1] : Math.max(...todos);
-        if (max - min < 1e-6) { max += 1; min -= 1; }
-        ctx.strokeStyle = col; ctx.lineWidth = 1.8; ctx.lineJoin = "round"; ctx.beginPath();
+        if (!arr) return null;
+        const vals = [];
+        for (let i = i0; i <= i1; i++) if (arr[i] != null) vals.push(arr[i]);
+        if (vals.length < 2) return null;
+        return [Math.min(...vals), Math.max(...vals)];
+      });
+      let comunMin = Infinity, comunMax = -Infinity;
+      if (g.comun) {
+        rangos.forEach(r => { if (r) { comunMin = Math.min(comunMin, r[0]); comunMax = Math.max(comunMax, r[1]); } });
+        if (g.id === "g3") { comunMin = Math.min(comunMin, 0); comunMax = Math.max(comunMax, 0); }
+      }
+      const rangoDe = sIdx => {
+        let mn = g.fijo ? g.fijo[0] : (g.comun ? comunMin : rangos[sIdx]?.[0]);
+        let mx = g.fijo ? g.fijo[1] : (g.comun ? comunMax : rangos[sIdx]?.[1]);
+        if (mn == null || !isFinite(mn)) return null;
+        if (g.rangoMin) { mn = Math.min(mn, g.rangoMin[0]); mx = Math.max(mx, g.rangoMin[1]); }
+        if (g.refs) {
+          for (const rf of g.refs) {
+            if (rf.serie != null && rf.serie !== sIdx) continue;
+            if (g.id === "g2" && rf.v === 89) mx = Math.max(mx, 92);
+          }
+        }
+        if (mx - mn < 1e-6) { mx += 1; mn -= 1; }
+        return [mn, mx];
+      };
+      const yDe = (v, r) => padT + (1 - (v - r[0]) / (r[1] - r[0])) * ah;
+
+      // Líneas de referencia horizontales
+      if (g.refs) {
+        for (const rf of g.refs) {
+          const r = rangoDe(rf.serie || 0);
+          if (!r || rf.v < r[0] || rf.v > r[1]) continue;
+          const y = yDe(rf.v, r);
+          ctx.save(); ctx.strokeStyle = rf.col || cSub; ctx.globalAlpha = 0.45; ctx.setLineDash([4, 3]); ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(w - padR, y); ctx.stroke();
+          ctx.restore();
+          ctx.fillStyle = rf.col || cSub;
+          ctx.fillText(rf.etq, padL + 3, y - 2);
+        }
+      }
+
+      // Líneas y etiquetas de marcas ⚑
+      if (notas.length && tFin > tIni) {
+        ctx.save(); ctx.strokeStyle = "rgba(239,68,68,0.6)"; ctx.setLineDash([4, 3]); ctx.lineWidth = 1.2;
+        for (const m of notas) {
+          if (m.t < tIni || m.t > tFin) continue;
+          const x = padL + (m.t - tIni) / (tFin - tIni) * aw;
+          ctx.beginPath(); ctx.moveTo(x, padT - 4); ctx.lineTo(x, h - padB); ctx.stroke();
+          if (gi === 0) {
+            ctx.setLineDash([]);
+            const txt = `⚑ ${m.texto.slice(0, 14)}`;
+            ctx.fillStyle = "#ef4444";
+            const tw = ctx.measureText(txt).width;
+            ctx.fillText(txt, Math.max(padL, Math.min(w - padR - tw, x - tw / 2)), 10);
+            ctx.setLineDash([4, 3]);
+          }
+        }
+        ctx.restore();
+      }
+
+      // Series
+      g.series.forEach(([k, _nom, _ud, col, dec], sIdx) => {
+        const arr = d.series[k], r = rangoDe(sIdx);
+        if (!arr || !r) return;
+        ctx.strokeStyle = col; ctx.lineWidth = (g.id === "g3" && k === "mezcla_total") ? 2.2 : 1.7; ctx.lineJoin = "round"; ctx.beginPath();
         let empezo = false;
-        for (let i = 0; i < n; i++) {
+        for (let i = i0; i <= i1; i++) {
           const v = arr[i]; if (v == null) continue;
-          const x = i / (n - 1) * w, y = h - 4 - (v - min) / (max - min) * (h - 8);
+          const x = xDeI(i), y = yDe(v, r);
           if (!empezo) { ctx.moveTo(x, y); empezo = true; } else ctx.lineTo(x, y);
         }
         ctx.stroke();
+        // Ejes laterales (serie 0 a la izquierda, serie 1 a la derecha si no comparten escala)
+        const fmtAx = v => Number(v).toFixed(dec > 1 ? 1 : 0).replace(".", ",");
+        if (sIdx === 0) {
+          ctx.fillStyle = g.comun ? cSub : col;
+          ctx.fillText(fmtAx(r[1]), 2, padT + 6);
+          ctx.fillText(fmtAx(r[0]), 2, h - padB);
+        } else if (sIdx === 1 && !g.comun) {
+          ctx.fillStyle = col;
+          const tMax = fmtAx(r[1]), tMin = fmtAx(r[0]);
+          ctx.fillText(tMax, w - ctx.measureText(tMax).width - 2, padT + 6);
+          ctx.fillText(tMin, w - ctx.measureText(tMin).width - 2, h - padB);
+        }
       });
-      if (idx != null && idx >= 0 && idx < n) {
-        const x = idx / (n - 1) * w;
-        ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--txt").trim();
-        ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+
+      // Cursor vertical
+      if (idx != null && idx >= i0 && idx <= i1) {
+        const x = xDeI(idx);
+        ctx.strokeStyle = cTxt; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(x, padT - 4); ctx.lineTo(x, h - padB); ctx.stroke();
       }
-    }
+    });
+
     const cur = $(`cur-${carpeta}`);
-    if (cur && idx != null && idx >= 0 && idx < n) {
+    if (cur && idx != null && idx >= i0 && idx <= i1) {
       const seg = Math.round(ts[idx]);
       const mm = Math.floor(seg / 60), ss = String(seg % 60).padStart(2, "0");
       const partes = [`<b>⏱ ${mm}:${ss}</b>`];
-      for (const [k, etq, ud, dec] of [["rpm","RPM","rpm",0],["velocidad","Vel","km/h",0],["gps_velocidad","GPS","km/h",0],["temp_motor","Temp","°C",0],["map","MAP","kPa",0],["ltft","LTFT","%",1],["stft","STFT","%",1],["sonda1","S1","V",2],["sonda2","S2","V",2],["bateria","Bat","V",2]]) {
+      const notaCerca = notas.find(m => Math.abs(m.t - ts[idx]) <= 6);
+      if (notaCerca) partes.push(`<span style="color:var(--rojo)"><b>⚑ ${esc(notaCerca.texto)}</b></span>`);
+      for (const [k, etq, ud, dec] of [["rpm","RPM","rpm",0],["velocidad","Vel","km/h",0],["gps_velocidad","GPS","km/h",0],["temp_motor","Temp","°C",0],["map","MAP","kPa",0],["mezcla_total","Mezcla","%",1],["ltft","LTFT","%",1],["stft","STFT","%",1],["sonda1","S1","V",2],["sonda2","S2","V",2],["bateria","Bat","V",2]]) {
         const v = d.series[k]?.[idx];
-        if (v != null) partes.push(`${etq}: <b>${Number(v).toFixed(dec).replace(".",",")} ${ud}</b>`);
+        if (v != null) {
+          const signo = (k === "mezcla_total" || k === "ltft" || k === "stft") && v > 0 ? "+" : "";
+          partes.push(`${etq}: <b>${signo}${Number(v).toFixed(dec).replace(".",",")} ${ud}</b>`);
+        }
       }
       cur.innerHTML = partes.join(" · ");
     }
   };
-  pintarTodas(n - 1);
-  for (const g of DEFINICION_GRAFICAS) {
+
+  // Botones de zoom rápido
+  const zCont = $(`zoom-${carpeta}`);
+  if (zCont) {
+    zCont.querySelectorAll("button").forEach(btn => {
+      btn.onclick = () => {
+        zCont.querySelectorAll("button").forEach(b => b.classList.toggle("activo", b === btn));
+        calcularRango(btn.dataset.z);
+        pintarTodas(i1);
+      };
+    });
+  }
+
+  visoresActivos[carpeta] = () => pintarTodas(idxActual);
+  pintarTodas(i1);
+  for (const g of graficasVisibles) {
     const c = $(`cv-${carpeta}-${g.id}`);
     if (!c) continue;
     const mover = ev => {
       const rect = c.getBoundingClientRect();
+      const padL = 36, padR = 36, aw = Math.max(1, rect.width - padL - padR);
       const x = (ev.touches ? ev.touches[0].clientX : ev.clientX) - rect.left;
-      const idx = Math.max(0, Math.min(n - 1, Math.round(x / Math.max(1, rect.width) * (n - 1))));
+      const rel = Math.max(0, Math.min(1, (x - padL) / aw));
+      const idx = Math.round(i0 + rel * (i1 - i0));
       pintarTodas(idx);
     };
     c.addEventListener("mousemove", mover);
@@ -1281,6 +1948,8 @@ function iniciarVisor(carpeta, d, notas){
 function pintarMantenimiento(m){
   const p = $("mantPendientes"), h = $("mantHistorial");
   if (!m) return;
+  mantCache = m;
+  if ($("p-historial")?.classList.contains("activa")) pintarEvolucion();
   const lista = m.pendientes_itv_dic2026 || [];
   const hechas = lista.filter(x => x.hecho).length;
   const compradas = lista.filter(x => x.comprado && !x.hecho).length;
@@ -1316,7 +1985,7 @@ function pintarMantenimiento(m){
       <input type="checkbox" ${x.hecho?"checked":""} onchange="marcarMantenimiento(${i}, this.checked)" style="cursor:pointer">
       <span style="flex:1;cursor:pointer;${x.hecho?"text-decoration:line-through;color:var(--sub)":""}" onclick="marcarMantenimiento(${i}, ${!x.hecho})">${esc(x.tarea)}</span>
       ${x.hecho
-        ? `<span class="estado verde">Hecho ✓</span>`
+        ? `<span class="estado verde">Hecho ✓</span><button class="boton chico" style="padding:3px 7px" title="Apuntar en el historial del coche" onclick="ofrecerPasarHistorial(${JSON.stringify(x.tarea).replace(/"/g, "&quot;")})">📋</button>`
         : `<span class="estado ${x.comprado?"amarillo":"gris"}" style="cursor:pointer" title="Pulsa para cambiar entre Pendiente y Comprado" onclick="alternarComprado(${i}, ${!x.comprado})">${x.comprado?"Comprado ✅":"Por comprar"}</span>`}
       <button class="boton chico" style="padding:3px 7px;background:transparent;color:var(--sub)" title="Quitar de la lista" onclick="borrarTarea(${i})">✕</button>
     </div>`).join("");
@@ -1327,12 +1996,47 @@ function pintarMantenimiento(m){
       <ul style="margin:6px 0 0;padding-left:20px">${(e.items||[]).map(it => `<li>${esc(it)}</li>`).join("")}</ul>
     </div>`).join("");
 }
+function ofrecerPasarHistorial(tarea){
+  const b = $("mantBannerHist");
+  if (!b) return;
+  const hoy = new Date().toISOString().slice(0, 10);
+  const tArg = JSON.stringify(tarea).replace(/"/g, "&quot;");
+  b.hidden = false;
+  b.innerHTML = `<span>✓ <b>${esc(tarea)}</b> · ¿Lo apuntamos en el historial con fecha de hoy (${hoy})?</span>
+    <div class="fila" style="gap:6px">
+      <button class="boton primario chico" onclick="guardarRapidoHistorial(${tArg})">📋 Apuntar hoy</button>
+      <button class="boton chico" onclick="abrirFormHistorialCon(${tArg})">✎ Editar / añadir km</button>
+      <button class="boton chico" style="padding:4px 8px" onclick="$('mantBannerHist').hidden=true">✕</button>
+    </div>`;
+}
+async function guardarRapidoHistorial(tarea){
+  const hoy = new Date().toISOString().slice(0, 10);
+  const r = await api("/api/mantenimiento", {nuevo_historial: {fecha: hoy, km: "", items: [tarea]}});
+  if (r.ok) {
+    $("mantBannerHist").hidden = true;
+    pintarMantenimiento(r.dato);
+    tostada("Apuntado en el historial del coche ✓");
+  }
+}
+function abrirFormHistorialCon(tarea){
+  $("mantBannerHist").hidden = true;
+  $("formHist").hidden = false;
+  $("histFecha").value = new Date().toISOString().slice(0, 10);
+  $("histItems").value = tarea;
+  $("formHist").scrollIntoView({behavior: "smooth", block: "center"});
+  $("histKm").focus();
+}
 async function cargarMantenimiento(){
   pintarMantenimiento(await api("/api/mantenimiento"));
 }
 async function marcarMantenimiento(indice, hecho){
+  const tarea = mantCache?.pendientes_itv_dic2026?.[indice]?.tarea;
   const r = await api("/api/mantenimiento", {indice, hecho});
-  if (r.ok) { pintarMantenimiento(r.dato); tostada(hecho ? "Marcado como hecho ✓" : "Desmarcado"); }
+  if (r.ok) {
+    pintarMantenimiento(r.dato);
+    tostada(hecho ? "Marcado como hecho ✓" : "Desmarcado");
+    if (hecho && tarea) ofrecerPasarHistorial(tarea);
+  }
 }
 async function alternarComprado(indice, comprado){
   const r = await api("/api/mantenimiento", {indice, comprado});
@@ -1433,22 +2137,26 @@ async function verRuta(id, carpeta){
   viajeElegido = carpeta && r.viajes.some(v => v.carpeta === carpeta) ? carpeta : r.viajes[0].carpeta;
   const v = r.viajes.find(x => x.carpeta === viajeElegido);
   const p = $("panelRuta"); p.hidden = false;
-  const enlaceGpx = window.MOTOR ? `<button class="boton chico" onclick="MOTOR.bajarArchivo(${JSON.stringify(v.carpeta).replace(/"/g, "&quot;")}, 'ruta.gpx')">⬇ GPX</button>`
+  const vCarpArg = JSON.stringify(v.carpeta).replace(/"/g, "&quot;");
+  const enlaceGpx = window.MOTOR ? `<button class="boton chico" onclick="MOTOR.bajarArchivo(${vCarpArg}, 'ruta.gpx')">⬇ GPX</button>`
     : `<a class="boton chico" href="/registros/${encodeURIComponent(v.carpeta)}/ruta.gpx" download="sandero_${esc(v.carpeta)}.gpx">⬇ GPX</a>`;
   p.innerHTML = `<div class="fila" style="justify-content:space-between;gap:8px">
       <h2 style="margin:0">${esc(nombreRuta(r))}</h2>
-      <div class="fila" style="gap:6px"><button class="boton chico" onclick="renombrarRuta(${JSON.stringify(r.id).replace(/"/g, "&quot;")})">✎ Nombre</button>${enlaceGpx}</div></div>
+      <div class="fila" style="gap:6px"><button class="boton chico" onclick="irAGraficasSesion(${vCarpArg})">📈 Gráficas</button><button class="boton chico" onclick="renombrarRuta(${JSON.stringify(r.id).replace(/"/g, "&quot;")})">✎ Nombre</button>${enlaceGpx}</div></div>
     <div class="mensaje-con" style="margin-top:4px">${r.veces} ${r.veces === 1 ? "vez" : "veces"} · ${n1(r.km)} km${r.sube_m != null ? ` · sube ${r.sube_m} m y baja ${r.baja_m} m` : ""}.
       El color del camino es lo que gastaba en cada tramo: <span style="color:${colorL100(5)}">●</span> poco → <span style="color:${colorL100(16)}">●</span> mucho.</div>
     <div id="mapaRuta" class="mapa-ruta"><div class="vacio" style="padding:12px">Cargando mapa…</div></div>
+    <div id="perfilInfo" class="perfil-info" hidden>Pasa el dedo o el ratón por el perfil de altura para situarlo en el mapa.</div>
     <canvas id="perfilRuta" class="perfil-ruta"></canvas>
     <div class="tabla-scroll"><table class="tabla-viajes"><thead><tr><th>Salida</th><th>L/100</th><th>km</th><th>min</th>
-      <th>Subiendo</th><th>Llano</th><th>Bajando</th><th>Parado</th><th>Frío</th></tr></thead><tbody>
+      <th>Subiendo</th><th>Llano</th><th>Bajando</th><th>Parado</th><th>Frío</th><th></th></tr></thead><tbody>
       ${r.viajes.map(x => { const f = x.factores || {}, c = x.clases || {};
-        return `<tr class="${x.carpeta === viajeElegido ? "elegido" : ""}" onclick="verRuta(${JSON.stringify(r.id).replace(/"/g, "&quot;")}, ${JSON.stringify(x.carpeta).replace(/"/g, "&quot;")})">
+        const xArg = JSON.stringify(x.carpeta).replace(/"/g, "&quot;");
+        return `<tr class="${x.carpeta === viajeElegido ? "elegido" : ""}" onclick="verRuta(${JSON.stringify(r.id).replace(/"/g, "&quot;")}, ${xArg})">
         <td>${x.mejor ? "⭐ " : ""}${esc(fechaCorta(x.inicio))}</td><td style="color:${colorL100(x.l100)}"><b>${n1(x.l100)}</b></td>
         <td>${n1(x.km)}</td><td>${n1(x.min, 0)}</td><td>${n1(c.subida?.l100)}</td><td>${n1(c.llano?.l100)}</td><td>${n1(c.bajada?.l100)}</td>
-        <td>${n1(f.min_parado, 0)} min</td><td>${n1(f.min_frio, 0)} min</td></tr>`; }).join("")}
+        <td>${n1(f.min_parado, 0)} min</td><td>${n1(f.min_frio, 0)} min</td>
+        <td><button class="boton chico" style="padding:3px 7px" title="Ver gráficas de sensores" onclick="event.stopPropagation();irAGraficasSesion(${xArg})">📈</button></td></tr>`; }).join("")}
     </tbody></table></div>
     <h3>${esc(fechaCorta(v.inicio))}: ¿por qué gastó lo que gastó?</h3>
     ${htmlPorQue(v, mejor)}
@@ -1461,15 +2169,18 @@ async function verRuta(id, carpeta){
   try { d = await api("/api/ruta/" + encodeURIComponent(v.carpeta)); } catch (e) { d = null; }
   if (!d || d.error) { $("mapaRuta").innerHTML = `<div class="vacio" style="padding:12px">No encuentro el recorrido de esta salida.</div>`; return; }
   const dRef = mejor && mejor.carpeta !== v.carpeta ? await api("/api/ruta/" + encodeURIComponent(mejor.carpeta)).catch(() => null) : null;
-  pintarPerfil(d, dRef && !dRef.error ? dRef : null);
+  const refOk = dRef && !dRef.error ? dRef : null;
+  perfilActual = {d, ref: refOk, cursorIdx: null};
+  pintarPerfil(d, refOk, null);
   try { await cargarLeaflet(); } catch (e) {
     $("mapaRuta").innerHTML = `<div class="vacio" style="padding:12px">Sin internet no se puede dibujar el mapa (el resto sí está).</div>`; return;
   }
-  pintarMapa(d, dRef && !dRef.error ? dRef : null);
+  pintarMapa(d, refOk);
 }
 function pintarMapa(d, ref){
   const caja = $("mapaRuta");
   if (mapa) { mapa.remove(); mapa = null; }
+  marcadorPerfil = null;
   caja.innerHTML = "";
   mapa = L.map(caja, {scrollWheelZoom: false});
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19, attribution: "© OpenStreetMap"}).addTo(mapa);
@@ -1487,14 +2198,18 @@ function pintarMapa(d, ref){
   L.circleMarker([pts[pts.length - 1][0], pts[pts.length - 1][1]], {radius: 7, color: "#c9362e", fillOpacity: 1}).bindTooltip("Llegada").addTo(mapa);
   mapa.fitBounds(L.latLngBounds(pts.map(p => [p[0], p[1]])), {padding: [20, 20]});
 }
-function pintarPerfil(d, ref){  // altura por km, con el gasto de cada tramo en color debajo
-  const cv = $("perfilRuta"); if (!cv) return;
+function pintarPerfil(d, ref, cursorIdx = null){  // altura por km, sincronizado con el mapa
+  const cv = $("perfilRuta"), info = $("perfilInfo"); if (!cv) return;
   const tr = d.tramos || [], pts = d.puntos || [];
-  if (!d.con_altura || !pts.length) { cv.hidden = true; return; }
+  if (!d.con_altura || !pts.length) { cv.hidden = true; if (info) info.hidden = true; return; }
+  cv.hidden = false;
+  if (info) info.hidden = false;
   const dpr = window.devicePixelRatio || 1, W = cv.clientWidth || 600, H = 170;
   cv.width = W * dpr; cv.height = H * dpr; cv.style.height = H + "px";
   const g = cv.getContext("2d"); g.scale(dpr, dpr);
   const est = getComputedStyle(document.documentElement);
+  const cAcc = est.getPropertyValue("--acento").trim() || "#2563eb";
+  const cTxt = est.getPropertyValue("--txt").trim() || "#111";
   const km = pts[pts.length - 1][3] || 1, alts = pts.map(p => p[2]).concat(ref ? ref.puntos.map(p => p[2]) : []).filter(a => a != null);
   const amin = Math.min(...alts), amax = Math.max(...alts, amin + 20);
   const x = k => 34 + k / km * (W - 44), y = a => 12 + (1 - (a - amin) / (amax - amin)) * (H - 52);
@@ -1502,11 +2217,58 @@ function pintarPerfil(d, ref){  // altura por km, con el gasto de cada tramo en 
   const linea = (ps, color, ancho, raya) => { g.beginPath(); g.setLineDash(raya || []); g.strokeStyle = color; g.lineWidth = ancho;
     ps.forEach((p, i) => p[2] != null && (i ? g.lineTo(x(p[3]), y(p[2])) : g.moveTo(x(p[3]), y(p[2])))); g.stroke(); g.setLineDash([]); };
   if (ref) linea(ref.puntos, est.getPropertyValue("--gris").trim() || "#888", 1.5, [5, 4]);
-  linea(pts, est.getPropertyValue("--acento").trim() || "#2563eb", 2.5);
+  linea(pts, cAcc, 2.5);
+
+  if (cursorIdx != null && pts[cursorIdx]) {
+    const p = pts[cursorIdx], px = x(p[3]), py = p[2] != null ? y(p[2]) : H / 2;
+    g.strokeStyle = cTxt; g.lineWidth = 1.2; g.beginPath(); g.moveTo(px, 10); g.lineTo(px, H - 20); g.stroke();
+    g.fillStyle = cAcc; g.beginPath(); g.arc(px, py, 5, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = "#fff"; g.lineWidth = 1.5; g.stroke();
+    // Sincronizar marcador con el mapa Leaflet
+    if (mapa && window.L) {
+      if (!marcadorPerfil) {
+        marcadorPerfil = L.circleMarker([p[0], p[1]], {radius: 8, color: "#fff", weight: 3, fillColor: cAcc, fillOpacity: 1}).addTo(mapa);
+      } else {
+        marcadorPerfil.setLatLng([p[0], p[1]]);
+      }
+    }
+    if (info) {
+      const trAct = tr.find(t => p[3] >= t.km && p[3] <= t.km + t.m / 1000 + 0.005);
+      const l100v = trAct?.l100 ?? p[4];
+      const pend = trAct?.pendiente != null ? ` · Pendiente <b>${trAct.pendiente > 0 ? "+" : ""}${n1(trAct.pendiente)} %</b>` : "";
+      const vel = trAct?.kmh != null ? ` · <b>${Math.round(trAct.kmh)} km/h</b>` : "";
+      info.innerHTML = `<span>📍 <b>${n1(p[3])} km</b></span><span>⛰ <b>${p[2] != null ? Math.round(p[2]) + " m" : "–"}</b></span><span>⛽ <b style="color:${colorL100(l100v)}">${n1(l100v)} L/100</b></span><span>${vel}${pend}</span>`;
+    }
+  }
+
   g.fillStyle = est.getPropertyValue("--sub").trim() || "#666"; g.font = "12px system-ui, sans-serif";
   g.fillText(`${Math.round(amax)} m`, 0, 16); g.fillText(`${Math.round(amin)} m`, 0, H - 40);
   g.fillText("0 km", 34, H - 6); const tk = `${n1(km)} km`; g.fillText(tk, W - 10 - g.measureText(tk).width, H - 6);
   g.fillText("gasto por tramo", W / 2 - 45, H - 6);
+
+  if (!cv._enl) {
+    cv._enl = true;
+    const mover = ev => {
+      if (!perfilActual) return;
+      const ps = perfilActual.d.puntos || [];
+      if (!ps.length) return;
+      const rect = cv.getBoundingClientRect();
+      const cx = (ev.touches ? ev.touches[0].clientX : ev.clientX) - rect.left;
+      const kmTot = ps[ps.length - 1][3] || 1;
+      const kmObj = Math.max(0, Math.min(kmTot, (cx - 34) / Math.max(1, rect.width - 44) * kmTot));
+      // Buscar punto más cercano en km
+      let best = 0, bestD = Infinity;
+      for (let i = 0; i < ps.length; i++) {
+        const dif = Math.abs(ps[i][3] - kmObj);
+        if (dif < bestD) { bestD = dif; best = i; }
+      }
+      perfilActual.cursorIdx = best;
+      pintarPerfil(perfilActual.d, perfilActual.ref, best);
+    };
+    cv.addEventListener("mousemove", mover);
+    cv.addEventListener("touchmove", mover, {passive: true});
+    cv.addEventListener("touchstart", mover, {passive: true});
+  }
 }
 async function renombrarRuta(id){
   const r = (rutasCache || []).find(x => x.id === id); if (!r) return;
@@ -1541,6 +2303,7 @@ function escuchar(){
   if (aj.correccion_velocidad != null && $("corrVelocidad")) $("corrVelocidad").value = String(aj.correccion_velocidad).replace(".",",");
   if ($("histFecha")) $("histFecha").value = new Date().toISOString().slice(0, 10);
   escuchar();
+  api("/api/mantenimiento").then(m => { mantCache = m; if ($("p-historial")?.classList.contains("activa")) pintarEvolucion(); }).catch(() => {});
   cargarSesiones();
 })();
 window.addEventListener("resize", () => { redibujarTodo(); });

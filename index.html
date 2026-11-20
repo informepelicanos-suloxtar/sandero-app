@@ -15,6 +15,7 @@
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-tema="claro"]){
+    color-scheme:dark;  /* que los controles del navegador (fecha, casillas) también vayan en oscuro */
     --bg:#0f1720; --panel:#17212c; --panel2:#1e2a37; --txt:#e8edf2; --sub:#93a0af; --linea:#273443;
     --acento:#4c8dff; --acento-txt:#fff;
     --verde:#3ccf7f; --verde-bg:#143425; --amarillo:#f0b93a; --amarillo-bg:#3a2f12;
@@ -23,6 +24,7 @@
   }
 }
 :root[data-tema="oscuro"]{
+  color-scheme:dark;
   --bg:#0f1720; --panel:#17212c; --panel2:#1e2a37; --txt:#e8edf2; --sub:#93a0af; --linea:#273443;
   --acento:#4c8dff; --acento-txt:#fff;
   --verde:#3ccf7f; --verde-bg:#143425; --amarillo:#f0b93a; --amarillo-bg:#3a2f12;
@@ -205,6 +207,7 @@ code{background:var(--panel2);padding:1px 6px;border-radius:5px;font-size:14px}
 .marcas{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
 .marcas button{padding:14px 8px;border-radius:10px;border:1px solid var(--linea);background:var(--panel2);color:var(--txt);font-weight:600}
 input[type=text]{font:inherit;width:100%;padding:11px 12px;border-radius:10px;border:1px solid var(--linea);background:var(--panel2);color:var(--txt)}
+input[type=datetime-local]{font:inherit;width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--linea);background:var(--panel2);color:var(--txt);box-sizing:border-box}
 label.marca{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size:15px}
 .tostada{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--txt);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;z-index:40;max-width:calc(100% - 32px)}
 .tostada.si{opacity:1}
@@ -607,7 +610,7 @@ label.marca{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size
         lo que gasta de verdad, contando todas las salidas, cortas y largas, y se ajusta el cálculo de la app.</p>
       <div id="formDeposito" hidden style="margin:10px 0;padding:12px;border-radius:12px;background:var(--panel2)">
         <div class="fila" style="margin-bottom:8px">
-          <label class="dep-campo">Fecha y hora<input type="datetime-local" id="depFecha"></label>
+          <label class="dep-campo" style="min-width:230px">Fecha y hora<input type="datetime-local" id="depFecha"></label>
           <label class="dep-campo">Km totales del cuadro<input type="text" inputmode="decimal" id="depKm" placeholder="p. ej. 212.480"></label>
           <label class="dep-campo">Km del parcial (si lo usas)<input type="text" inputmode="decimal" id="depParcial" placeholder="p. ej. 452,3"></label>
         </div>
@@ -2178,12 +2181,12 @@ function pintarDeposito(d){
   ent.className = "";
   ent.innerHTML = (d.entradas || []).length ? (d.entradas || []).map(e => `
     <div class="sesion">
-      <div class="cab"><b>${esc(fecha(e.fecha))}</b>${e.km != null ? `<span>${num(e.km, 0)} km</span>` : ""}${e.km_parcial != null ? `<span>parcial ${num(e.km_parcial)} km</span>` : ""}
-        <button class="boton chico" style="margin-left:auto;padding:3px 7px;background:transparent;color:var(--sub)" title="Borrar" onclick="borrarDeposito(${JSON.stringify(e.id).replace(/"/g, "&quot;")})">✕</button></div>
-      <div style="margin-top:4px">${[
+      <div class="cab"><b>${esc(fecha(e.fecha))}</b>${e.km != null ? `<span>${num(e.km, 0)} km</span>` : ""}${e.km_parcial != null ? `<span>parcial ${num(e.km_parcial)} km</span>` : ""}</div>
+      <div style="margin-top:4px;display:flex;align-items:flex-start;gap:8px"><span style="flex:1">${[
         e.litros_deposito != null ? `El cuadro marcaba <b>${num(e.litros_deposito)} L</b>` : "",
         e.litros_echados != null ? `Echados <b>${num(e.litros_echados, 2)} L</b>${e.lleno ? " (lleno)" : ""}` : "",
-        e.nota ? esc(e.nota) : ""].filter(Boolean).join(" · ")}</div>
+        e.nota ? esc(e.nota) : ""].filter(Boolean).join(" · ")}</span>
+        <button class="boton chico" style="padding:3px 7px;background:transparent;color:var(--sub)" title="Borrar" onclick="borrarDeposito(${JSON.stringify(e.id).replace(/"/g, "&quot;")})">✕</button></div>
     </div>`).join("") : `<div class="vacio">Aún no hay nada apuntado. Cuando se encienda la reserva, mira el cuadro y apúntalo aquí.</div>`;
 }
 async function marcarMantenimiento(indice, hecho){

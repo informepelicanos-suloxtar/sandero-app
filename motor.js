@@ -10,7 +10,7 @@
  */
 (() => {
 "use strict";
-const VERSION = "cb414eb669";
+const VERSION = "712e479584";
 const PY = ["pids.py", "averias.py", "diagnostico.py", "analisis.py", "rutas.py", "servidor.py", "elm327.py", "simulador.py", "movil_py.py"];
 const espera = ms => new Promise(r => setTimeout(r, ms));
 const h2 = n => n.toString(16).toUpperCase().padStart(2, "0");
@@ -78,6 +78,7 @@ async function arrancar() {
   if (!navigator.bluetooth) setTimeout(() => tostadaMovil(/iPhone|iPad|iPod/.test(navigator.userAgent)
     ? "Safari no tiene Bluetooth: abre esta misma dirección con la app Bluefy." : "Este navegador no tiene Bluetooth: abre la app con Chrome en Android."), 800);
   else if (recuperadas.length) setTimeout(() => tostadaMovil("Se cerró a medias una grabación: ya está guardada y revisada."), 800);
+  else if (otroCoche()) setTimeout(() => tostadaMovil("La última vez hiciste un chequeo a otro coche: pulsa Conectar para volver al Sandero."), 800);
 }
 
 let guardando = null, otraVez = false;
@@ -230,12 +231,13 @@ class TransporteSimulado {
     const rampa = ciclo >= 0 && ciclo < 70 ? Math.min(1, ciclo / 10, (70 - ciclo) / 10) : 0;
     const vel = rampa ? rampa * (50 + 30 * Math.sin(ciclo / 70 * Math.PI)) : 0;
     const idle = temp < 80 ? 1150 - (temp - 18) * 5 : 790;
-    const rpm = vel === 0 ? idle + azar(-25, 25) : 1600 + vel * 25 + azar(-40, 40);
+    let rpm = vel === 0 ? idle + azar(-25, 25) : 1600 + vel * 25 + azar(-40, 40);
+    if (this.rpmFijo) rpm = this.rpmFijo + azar(-40, 40);  // chequeo de prueba: «pisa» a 2.500 rpm
     const lazo = temp > 45 && !(vel && Math.random() < 0.05) ? 2 : 1;
     const sonda1 = lazo === 2 ? 0.48 + 0.4 * Math.sin(Date.now() / 1000 * 4.5) : 0.1;
     return { temp, rpm, vel, lazo, sonda1: Math.max(0.05, sonda1),
       sonda2: caliente ? 0.68 + azar(-0.04, 0.04) : 0.2,
-      map: vel === 0 ? 33 + azar(-2, 2) : 55 + vel * 0.3,
+      map: this.rpmFijo ? 22 + azar(-2, 2) : vel === 0 ? 33 + azar(-2, 2) : 55 + vel * 0.3,
       stft: lazo === 2 ? azar(-6, 6) : 0, ltft: 7.8, carga: vel === 0 ? 26 : 45 + vel * 0.2,
       avance: vel === 0 ? 10 + azar(-2, 2) : 30, acel: vel === 0 ? 12.2 : 22 + vel * 0.2,
       iat: 24 + temp * 0.15, t, bat: 14.1 + azar(-0.1, 0.1) };
@@ -408,6 +410,186 @@ class ELM327 {
   }
 }
 
+// ------------------------------------------------------------------ chequeo de coherencia (cualquier coche)
+// Conexión aparte: no llama a M.conectado, así que no abre ninguna grabación del Sandero ni sube nada a registros/.
+// Los chequeos se guardan en /coche/chequeos.json (IndexedDB del móvil) y, con la llave, en chequeos/ del repositorio.
+
+const CHQ = { elm: null, t: null, demo: false, info: null };
+const CHQ_F = "/coche/chequeos.json", OTRO_K = "modoOtroCoche";
+const otroCoche = () => { try { return localStorage.getItem(OTRO_K) === "1"; } catch { return false; } };
+const marcarOtro = si => { try { si ? localStorage.setItem(OTRO_K, "1") : localStorage.removeItem(OTRO_K); } catch {} };
+const u16 = d => d.length >= 2 ? (d[0] << 8) | d[1] : null;
+const CHQ_PIDS = {  // PIDs universales del modo 01: clave y fórmula SAE J1979
+  0x03: ["lazo", d => d[0]],
+  0x04: ["carga", d => d[0] * 100 / 255],
+  0x05: ["ect", d => d[0] - 40],
+  0x06: ["stft", d => (d[0] - 128) * 100 / 128],
+  0x07: ["ltft", d => (d[0] - 128) * 100 / 128],
+  0x0B: ["map", d => d[0]],
+  0x0C: ["rpm", d => u16(d) == null ? null : u16(d) / 4],
+  0x0D: ["velocidad", d => d[0]],
+  0x0F: ["iat", d => d[0] - 40],
+  0x10: ["maf", d => u16(d) == null ? null : u16(d) / 100],
+  0x11: ["mariposa", d => d[0] * 100 / 255],
+  0x14: ["o2_s1", d => d[0] / 200],
+  0x15: ["o2_s2", d => d[0] / 200],
+  0x42: ["v_ecu", d => u16(d) == null ? null : u16(d) / 1000],
+};
+// la sonda delantera va 3 veces por vuelta (oscila ~1 vez/s y en KWP solo hay ~5 lecturas/s)
+const CHQ_RAPIDOS = [0x0C, 0x14, 0x06, 0x0B, 0x14, 0x10, 0x11, 0x04, 0x14, 0x15, 0x0D];
+const CHQ_LENTOS = [0x05, 0x0F, 0x07, 0x42, 0x03];
+
+function chqDecodificar(pid, d) {
+  const def = CHQ_PIDS[pid];
+  if (!def || !d || !d.length) return null;
+  const v = def[1](d);
+  return v == null || !isFinite(v) ? null : Math.round(v * 1000) / 1000;
+}
+function chqCorrBateria() {  // el lector marca algo menos que un polímetro (medido en el Sandero): es cosa del lector
+  try { return Number(JSON.parse(M.get("/api/ajustes")).correccion_bateria) || 0; } catch { return 0; }
+}
+
+async function chqConectar(destino) {
+  if (CHQ.elm) return { ok: true, dato: { ...CHQ.info, soportados: [...CHQ.elm.soportados].map(h2) } };
+  const demo = destino === "demo";
+  try {
+    if (!demo) {
+      if (!navigator.bluetooth) throw new ErrorLector(/iPhone|iPad|iPod/.test(navigator.userAgent)
+        ? "Safari no tiene Bluetooth. Abre la app con «Bluefy – Web BLE Browser»." : "Este navegador no tiene Bluetooth. Abre la app con Chrome en Android.");
+      if (destino === "ble_todos" || (!dispositivo && !(await lectorRecordado()))) await elegirLector(destino === "ble_todos");
+    }
+    if (Lec.conectando) throw new ErrorLector("La app está conectando con el Sandero: espera unos segundos y vuelve a pulsar.");
+    marcarOtro(true); Lec.auto = false;
+    if (Lec.elm) { const ble = !Lec.demo; await soltar("Pasa al chequeo de coherencia"); if (ble && !demo) await espera(3000); }
+    const t = demo ? new TransporteSimulado() : new TransporteBLE(dispositivo);
+    try { await t.abrir(); } catch (e) { t.cerrar(); throw e; }
+    const elm = new ELM327(t);
+    let info;
+    try { info = await elm.iniciar(); } catch (e) { t.cerrar(); throw e; }
+    info.destino = t.nombre;
+    info.vin = await elm.vin().catch(() => null);
+    Object.assign(CHQ, { elm, t, demo, info });
+    mantenerPantalla();
+    return { ok: true, dato: { ...info, soportados: [...elm.soportados].map(h2) } };
+  } catch (e) {
+    return { ok: false, error: e instanceof ErrorLector ? e.message : `${e.name || "Error"}: ${e.message || e}` };
+  }
+}
+
+async function chqSoltar() {
+  const t = CHQ.t;
+  CHQ.elm = null; CHQ.t = null; CHQ.info = null;
+  await cola;
+  if (t) t.cerrar();
+  soltarPantalla();
+  return { ok: true, dato: true };
+}
+
+function chqVolverSandero() { marcarOtro(false); Lec.auto = true; return { ok: true, dato: true }; }
+
+async function chqAverias() {
+  const e = CHQ.elm;
+  if (!e) return { ok: false, error: "Primero conecta con el coche" };
+  try {
+    const crudo = await enCola(async () => {
+      const c = {};
+      for (const modo of ["03", "07", "0A"]) c[modo] = await e.averias(modo);
+      c.monitores = e.soportados.has(0x01) ? await e.leerPid(0x01) : null;
+      return c;
+    });
+    return { ok: true, dato: JSON.parse(M.describir_averias(JSON.stringify(crudo))) };
+  } catch (err) { return { ok: false, error: err.message || String(err) }; }
+}
+
+async function chqLeer(lista) {  // unos pocos PIDs para la pantalla (rpm, temperatura) mientras se espera
+  const e = CHQ.elm;
+  if (!e) return { ok: false, error: "Sin conexión" };
+  try {
+    const out = {};
+    await enCola(async () => {
+      for (const pid of lista) if (e.soportados.has(pid)) {
+        const v = chqDecodificar(pid, await e.leerPid(pid));
+        if (v != null) out[CHQ_PIDS[pid][0]] = v;
+      }
+    });
+    return { ok: true, dato: out };
+  } catch (err) { return { ok: false, error: err.message || String(err) }; }
+}
+
+async function chqMuestra(segundos, rpmDemo) {  // captura de una fase: series de cada PID durante ≥ «segundos»
+  const e = CHQ.elm;
+  if (!e) return { ok: false, error: "Se ha perdido la conexión con el coche" };
+  if (CHQ.demo) CHQ.t.rpmFijo = rpmDemo || 0;
+  const s = e.soportados, series = {}, t0 = Date.now();
+  const leer = async pid => {
+    if (!s.has(pid)) return;
+    const v = chqDecodificar(pid, await e.leerPid(pid));
+    if (v != null) (series[CHQ_PIDS[pid][0]] ||= []).push([Math.round((Date.now() - t0) / 10) / 100, v]);
+  };
+  const bateria = async () => {
+    const v = await e.bateria();
+    if (v != null) (series.bateria_atrv ||= []).push([Math.round((Date.now() - t0) / 10) / 100, Math.round((v + chqCorrBateria()) * 100) / 100]);
+  };
+  try {
+    let vueltas = 0;
+    await enCola(async () => {
+      for (const pid of CHQ_LENTOS) await leer(pid);
+      await bateria();
+      while ((Date.now() - t0 < segundos * 1000 || vueltas < 3) && Date.now() - t0 < 40000) {
+        for (const pid of CHQ_RAPIDOS) await leer(pid);
+        vueltas++;
+      }
+      for (const pid of CHQ_LENTOS) await leer(pid);
+      await bateria();
+    });
+    return { ok: true, dato: { segundos: Math.round((Date.now() - t0) / 100) / 10, vueltas, series,
+      no_soportados: Object.entries(CHQ_PIDS).filter(([p]) => !s.has(Number(p))).map(([, d]) => d[0]) } };
+  } catch (err) { return { ok: false, error: err.message || String(err) }; }
+  finally { if (CHQ.t && CHQ.demo) CHQ.t.rpmFijo = 0; }
+}
+
+function chqLista() { return leerJSON(CHQ_F, []); }
+
+async function chqGuardar(reg) {
+  const lista = chqLista().filter(x => x.id !== reg.id);
+  lista.push(reg);
+  escribirJSON(CHQ_F, lista);
+  await guardar();
+  let subido = false, error = "";
+  if (nube().token && navigator.onLine) {
+    try {
+      const carpeta = String(reg.vehiculo_id || "sin-id").toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-|-$/g, "") || "SIN-ID";
+      await commitArchivos([[`chequeos/${carpeta}/${reg.id}.json`, new TextEncoder().encode(JSON.stringify(reg, null, 2) + "\n")]],
+        `Chequeo de coherencia ${reg.id} (subido desde el móvil)`);
+      subido = true;
+    } catch (e) { error = e.message || String(e); }
+  }
+  return { ok: true, dato: { subido, error } };
+}
+
+async function chqBorrar(id) {
+  escribirJSON(CHQ_F, chqLista().filter(x => x.id !== id));
+  await guardar();
+  return { ok: true, dato: true };
+}
+
+async function chq(accion, a = {}) {
+  await listo;
+  switch (accion) {
+    case "conectar": return chqConectar(a.destino || "ble");
+    case "soltar": return chqSoltar();
+    case "volver": await chqSoltar(); return chqVolverSandero();
+    case "averias": return chqAverias();
+    case "leer": return chqLeer(a.pids || [0x0C, 0x05]);
+    case "muestra": return chqMuestra(Number(a.segundos) || 5, a.rpmDemo);
+    case "lista": return { ok: true, dato: chqLista() };
+    case "guardar": return chqGuardar(a.registro);
+    case "borrar": return chqBorrar(a.id);
+    case "estado": return { ok: true, dato: { conectado: !!CHQ.elm, otro_coche: otroCoche(), demo: CHQ.demo, info: CHQ.info } };
+  }
+  return { ok: false, error: "Acción desconocida" };
+}
+
 // ------------------------------------------------------------------ el lector (lo que hace el hilo de servidor.py)
 
 const Lec = { elm: null, t: null, demo: false, auto: true, conectando: false, ultimaOk: 0, ciclo: 0, vuelta: 0, listas: null };
@@ -552,6 +734,7 @@ async function borrarAverias() {
 
 async function reconectarSolo() {  // como el hilo «reconectar» de servidor.py: vuelve a conectar si se corta
   if (!M || !Lec.auto || Lec.elm || Lec.conectando) return;
+  if (CHQ.elm || otroCoche()) return;  // el lector está en otro coche (chequeo): no grabarlo como si fuera el Sandero
   if (JSON.parse(M.get("/api/ajustes")).ultimo_lector !== "ble") return;
   if (!(await lectorRecordado())) return;  // sin lector recordado hay que pulsar Conectar
   await conectar("ble");
@@ -868,7 +1051,7 @@ async function escribirBuzon(texto) {
     const nuevo = previo.trimEnd() + `\n\n## ${fecha} · Saúl (desde el móvil)\n${texto}\n`;
     await commitArchivos([["BUZON.md", new TextEncoder().encode(nuevo)]], "Buzón: mensaje de Saúl desde el móvil");
     try { localStorage.removeItem("claudeCopia"); } catch {}
-    return { ok: true, dato: "Enviado a Claude ✓" };
+    return { ok: true, dato: "Enviado ✓ Claude contesta en 1-3 minutos (pulsa ↻ Actualizar)" };
   } catch (e) { return { ok: false, error: e.message || String(e) }; }
 }
 
@@ -902,7 +1085,9 @@ async function api(ruta, cuerpo) {
   if (cuerpo === undefined) return JSON.parse(M.get(ruta));
   const accion = (n, a) => { const r = JSON.parse(M.accion(n, JSON.stringify(a))); guardar(); return r; };
   switch (ruta) {
-    case "/api/conectar": Lec.auto = true; return conectar(cuerpo.destino || "ble");
+    case "/api/conectar":  // Conectar a mano = vuelve al Sandero (cierra el chequeo si estaba abierto)
+      if (CHQ.elm) await chqSoltar();
+      chqVolverSandero(); return conectar(cuerpo.destino || "ble");
     case "/api/desconectar": Lec.auto = false; await soltar("Desconectado"); return { ok: true, dato: true };
     case "/api/averias": return leerAverias();
     case "/api/borrar": return cuerpo.confirmo === true ? borrarAverias() : { ok: false, error: "Falta confirmar" };
@@ -981,12 +1166,13 @@ function ajustarTextos() {  // lo poco que cambia respecto al Mac
   if (h) h.innerHTML = "Se guardan en este móvil y, si has puesto la llave de GitHub (pestaña 💬 Claude), se suben solas al "
     + "terminar cada grabación. Luego dile a Claude: <b>«revisa la última grabación del coche»</b> y su respuesta sale en 💬 Claude.";
   const b = document.getElementById("textoBuzon");
-  if (b) b.innerHTML = "Se guarda en GitHub (<code>BUZON.md</code>). Claude lo lee cuando le digas «lee el buzón del coche».";
+  if (b) b.innerHTML = "Claude lo lee solo y contesta aquí arriba en 1-3 minutos (desde el portátil de la azotea). "
+    + "Pulsa <b>↻ Actualizar</b> para verlo.";
   const m = document.getElementById("textoMantenimiento");
   if (m) m.innerHTML = "Puedes marcar cada tarea según la vayas haciendo. Se guarda en este móvil y, con la llave de GitHub "
     + "puesta (pestaña 💬 Claude), también en el repositorio, para que lo vean Claude y el Mac.";
 }
 
-window.MOTOR = { api, suscribir, compartir, bajar, bajarArchivo, borrarGrabacion, version: VERSION,
+window.MOTOR = { api, chq, suscribir, compartir, bajar, bajarArchivo, borrarGrabacion, version: VERSION,
   opcionesLector: [["ble", "Lector OBD por Bluetooth"], ["ble_todos", "Buscar cualquier aparato Bluetooth"], ["demo", "Coche de prueba (demostración)"]] };
 })();

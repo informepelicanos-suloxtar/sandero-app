@@ -140,6 +140,25 @@ def averias_leidas(crudo_json):
     return _j(res)
 
 
+def describir_averias(crudo_json):
+    """Para el chequeo de otro coche: igual que averias_leidas pero sin tocar el estado ni la grabación del Sandero."""
+    c = json.loads(crudo_json)
+
+    def lista(codigos):
+        out = []
+        for x in codigos or []:
+            if x != "0000" and len(x) == 4:
+                cod = averias.decodificar(int(x[:2], 16), int(x[2:], 16))
+                if cod not in [y["codigo"] for y in out]:
+                    out.append(averias.describir(cod))
+        return out
+
+    mon = c.get("monitores")
+    return _j({"hora": datetime.now().strftime("%H:%M:%S"), "guardadas": lista(c.get("03")),
+               "pendientes": lista(c.get("07")), "permanentes": lista(c.get("0A")),
+               "monitores": averias.decodificar_monitores(mon) if mon and len(mon) >= 4 else None})
+
+
 def antes_de_borrar():
     if L.grabacion:
         L.grabacion.nota("Averías borradas desde la web")

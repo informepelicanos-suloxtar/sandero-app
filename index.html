@@ -57,6 +57,21 @@ select{font:inherit;padding:11px 12px;border-radius:10px;border:1px solid var(--
 .aviso{padding:10px 12px;border-radius:10px;background:var(--amarillo-bg);color:var(--txt);font-size:14px;margin-top:12px}
 .aviso.rojo{background:var(--rojo-bg)}
 .mensaje-con{color:var(--sub);font-size:14px;margin-top:10px}
+/* chequeo de coherencia */
+.chq-form{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.chq-form label,.chq-sint{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--sub);font-weight:600}
+.chq-form select{flex:none}
+.chq-sint{margin-top:10px}
+.chq-fase{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:12px;border-radius:12px;background:var(--panel2);margin-top:8px}
+.chq-fase.hecha{outline:2px solid var(--verde)}
+.chq-fase.mal{outline:2px solid var(--amarillo)}
+.chq-tabla td small{color:var(--sub);display:block;font-size:12px}
+.chq-ia{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.chq-coche{padding:10px 0;border-top:1px solid var(--linea)}
+.chq-coche:first-child{border-top:0}
+.chq-coche .fila{gap:6px}
+details.chq-prompt summary{cursor:pointer;color:var(--sub);font-size:14px;margin-top:10px}
+details.chq-prompt textarea{min-height:160px;font:12px/1.4 ui-monospace,Menlo,monospace;margin-top:6px}
 /* grabación */
 .grabando{position:sticky;top:0;z-index:5;display:none;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;margin:0 -16px 12px;background:var(--panel);border-bottom:1px solid var(--linea)}
 .grabando.si{display:flex}
@@ -336,6 +351,7 @@ label.marca{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size
     <button data-p="historial">Grabaciones</button>
     <button data-p="rutas">🗺️ Rutas</button>
     <button data-p="mantenimiento">Mantenimiento</button>
+    <button data-p="chequeo">🔧 Chequeo</button>
     <button data-p="claude">💬 Claude <span class="cuenta" id="cuentaClaude" hidden>nuevo</span></button>
   </nav>
 
@@ -487,6 +503,77 @@ label.marca{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size
     </div>
   </section>
 
+  <!-- CHEQUEO DE COHERENCIA (cualquier coche, sin grabar en el Sandero) -->
+  <section class="pestana" id="p-chequeo">
+    <div class="panel">
+      <h2>🔧 Chequeo de coherencia</h2>
+      <p class="mensaje-con" style="margin-top:0">Para mirar <b>cualquier coche</b> (o el tuyo) en 2 minutos: averías, ralentí y
+        2.500 rpm, y cruza los sensores para encontrar fallos que no encienden el testigo. <b>No graba nada en el Sandero</b>:
+        cada chequeo se guarda aparte, por coche, para comparar antes y después de una reparación.</p>
+      <div class="aviso" id="chqSoloMovil" hidden>Esto solo funciona en la app del móvil (Bluefy en el iPhone o Chrome en Android).</div>
+      <div id="chqConectarBox">
+        <div class="fila">
+          <select id="chqDestino"></select>
+          <button class="boton primario" id="chqBtnCon" onclick="chqConectar()">Conectar con este coche</button>
+        </div>
+        <div class="mensaje-con" id="chqMsgCon"></div>
+      </div>
+      <div id="chqConectadoBox" hidden>
+        <div class="fila" style="justify-content:space-between">
+          <div><b id="chqProto">Conectado</b><div class="mensaje-con" id="chqVivo" style="margin-top:2px">–</div></div>
+          <button class="boton chico" onclick="chqDesconectar()">Desconectar</button>
+        </div>
+      </div>
+      <div class="aviso" id="chqOtroAviso" hidden>El lector está en modo <b>otro coche</b>: la app no se conecta sola al Sandero.
+        Cuando vuelvas a tu coche pulsa <b>Conectar</b> arriba (o <button class="boton chico" onclick="chqVolver()">Volver al Sandero</button>).</div>
+    </div>
+
+    <div class="panel" id="chqDatos" hidden>
+      <h2>1 · El coche</h2>
+      <div class="chq-form">
+        <label>VIN <input type="text" id="chqVin" placeholder="Se lee solo si el coche lo da" autocapitalize="characters" oninput="chqVinCambia()"></label>
+        <label>Matrícula <input type="text" id="chqMatricula" placeholder="Opcional" autocapitalize="characters"></label>
+        <label>Marca <input type="text" id="chqMarca" placeholder="Ej.: Renault"></label>
+        <label>Modelo <input type="text" id="chqModelo" placeholder="Ej.: Clio III"></label>
+        <label>Año <input type="text" inputmode="numeric" id="chqAnio" placeholder="Ej.: 2009"></label>
+        <label>Combustible <select id="chqComb"><option>Gasolina</option><option>Diésel</option></select></label>
+        <label>Motor <input type="text" id="chqMotor" placeholder="Opcional: código o cilindrada (K9K, 1.6 16V…)"></label>
+        <label>Kilómetros <input type="text" inputmode="numeric" id="chqKm" placeholder="Opcional"></label>
+      </div>
+      <label class="chq-sint">Síntoma observado
+        <textarea class="caja" id="chqSintoma" placeholder="Opcional. Ej.: «consumo alto», «ralentí inestable en frío», «tirones al acelerar»"></textarea></label>
+      <h3>Averías</h3>
+      <div id="chqAverias" class="vacio">Leyendo…</div>
+    </div>
+
+    <div class="panel" id="chqCaptura" hidden>
+      <h2>2 · Captura en dos fases</h2>
+      <p class="mensaje-con" style="margin-top:0">Motor <b>caliente</b> (que haya saltado el ventilador), coche parado, en punto muerto y
+        sin aire acondicionado ni luces.</p>
+      <div class="chq-fase" id="chqF1">
+        <div><b>Fase 1 · Ralentí</b><div class="mensaje-con" id="chqF1Txt" style="margin:2px 0 0">No toques el acelerador.</div></div>
+        <button class="boton primario" id="chqBtnF1" onclick="chqFase(1)">Capturar ralentí</button>
+      </div>
+      <div class="chq-fase" id="chqF2">
+        <div><b>Fase 2 · 2.500 rpm en vacío</b><div class="mensaje-con" id="chqF2Txt" style="margin:2px 0 0">Pisa hasta ~2.500 rpm, aguanta y,
+          cuando esté estable, pulsa.</div></div>
+        <button class="boton primario" id="chqBtnF2" onclick="chqFase(2)" disabled>Capturar 2.500 rpm</button>
+      </div>
+      <div class="fila" id="chqIgual" hidden style="margin-top:10px;justify-content:flex-end">
+        <span class="mensaje-con" style="margin:0">Alguna fase no salió bien: mejor repetirla.</span>
+        <button class="boton chico" onclick="chqTerminar()">Ver el resultado igualmente</button>
+      </div>
+    </div>
+
+    <div class="panel" id="chqResultado" hidden></div>
+
+    <div class="panel">
+      <div class="fila" style="justify-content:space-between"><h2 style="margin:0">Historial por coche</h2>
+        <button class="boton chico" onclick="chqCargarLista()">↻</button></div>
+      <div id="chqHistorial" class="vacio" style="margin-top:6px">Todavía no hay chequeos.</div>
+    </div>
+  </section>
+
   <!-- MANTENIMIENTO -->
   <section class="pestana" id="p-mantenimiento">
     <div class="panel">
@@ -608,6 +695,7 @@ function mostrarPestana(nombre, cargar = true){  // cargar=false: quien la abre 
   if (nombre==="rutas") cargarRutas();
   if (nombre==="mantenimiento") cargarMantenimiento();
   if (nombre==="claude") cargarClaude();
+  if (nombre==="chequeo") chqAbrir();
 }
 document.querySelectorAll("#pestanas button").forEach(b => b.onclick = () => mostrarPestana(b.dataset.p));
 
@@ -2307,6 +2395,454 @@ function escuchar(){
   cargarSesiones();
 })();
 window.addEventListener("resize", () => { redibujarTodo(); });
+</script>
+<script>
+// ------------------------------------------------------------------ 🔧 Chequeo de coherencia (cualquier coche)
+// La conexión y las lecturas las hace movil/motor.js (MOTOR.chq). Aquí: pantalla, cálculos, reglas, historial
+// y el texto para preguntar a Claude (sin clave de API: se copia/comparte a la app de Claude).
+
+const CHQ_PROMPT = `Eres un electromecánico experto en diagnosis multimarca. Recibirás datos reales OBD2 capturados al ralentí y a 2.500 rpm de un vehículo.
+
+Tu objetivo NO es repetir definiciones genéricas de códigos de error, sino cruzar los sensores entre sí para detectar incoherencias físicas y fallos silenciosos (incluso si hay 0 DTCs).
+
+Reglas de análisis obligatorias:
+- Evalúa coherencia térmica (ECT vs IAT con motor caliente; si ECT < 80°C sospecha de termostato o sensor mintiendo).
+- Evalúa la mezcla comparando STFT + LTFT al ralentí frente a 2.500 rpm (ej. LTFT alto al ralentí que baja al acelerar = fuga de vacío; si sube al acelerar = falta de combustible o MAF/MAP).
+- Evalúa sensores de oxígeno (oscilación de B1S1 vs estabilidad de B1S2) y voltaje de carga (13.8V - 14.5V).
+- Cruza siempre el diagnóstico con fallos endémicos conocidos del motor indicado si se proporciona.
+
+Responde siempre en español y con este formato estricto y directo para taller:
+1. RESUMEN DE COHERENCIA: Qué parámetros están fuera de rango o se contradicen.
+2. TOP 3 CAUSAS PROBABLES (ordenadas de mayor a menor probabilidad): Explicando en 1-2 líneas por qué encaja con los números.
+3. PRUEBA DE CONFIRMACIÓN EN TALLER: Qué comprobar físicamente (polímetro, vacío, prueba visual) antes de pedir ninguna pieza.
+Si faltan datos críticos para concluir, indícalo sin inventar.`;
+
+const CHQ_FILAS = [  // clave, nombre, unidad, decimales
+  ["rpm", "RPM", "rpm", 0], ["ect", "Temperatura refrigerante (ECT)", "°C", 0], ["iat", "Temperatura aire admisión (IAT)", "°C", 0],
+  ["carga", "Carga calculada", "%", 0], ["stft", "STFT B1 (corto plazo)", "%", 1], ["ltft", "LTFT B1 (largo plazo)", "%", 1],
+  ["total", "STFT + LTFT", "%", 1], ["map", "Presión colector (MAP)", "kPa", 0], ["maf", "Caudalímetro (MAF)", "g/s", 1],
+  ["mariposa", "Posición mariposa", "%", 0], ["o2_s1", "Sonda B1S1 (pre-cat)", "V", 2], ["o2_s2", "Sonda B1S2 (post-cat)", "V", 2],
+  ["v_ecu", "Tensión centralita (01 42)", "V", 2], ["bateria_atrv", "Batería en la toma OBD (AT RV)", "V", 2],
+];
+const CHQ_WMI = { VF1: "Renault", VF6: "Renault", UU1: "Dacia", VF3: "Peugeot", VR3: "Peugeot", VF7: "Citroën", VR7: "Citroën",
+  VR1: "DS", WVW: "Volkswagen", WV1: "Volkswagen", WV2: "Volkswagen", WAU: "Audi", WUA: "Audi", VSS: "Seat", VS6: "Ford",
+  TMB: "Škoda", WBA: "BMW", WBS: "BMW", WMW: "Mini", WDB: "Mercedes-Benz", WDD: "Mercedes-Benz", W1K: "Mercedes-Benz",
+  WDF: "Mercedes-Benz", ZFA: "Fiat", ZAR: "Alfa Romeo", ZLA: "Lancia", W0L: "Opel", W0V: "Opel", WF0: "Ford", VNV: "Nissan",
+  SJN: "Nissan", JN1: "Nissan", VSK: "Nissan", JTD: "Toyota", JTE: "Toyota", JTN: "Toyota", SB1: "Toyota", VNK: "Toyota",
+  NMT: "Toyota", KMH: "Hyundai", TMA: "Hyundai", NLH: "Hyundai", KNA: "Kia", KNE: "Kia", U5Y: "Kia", JHM: "Honda",
+  SHH: "Honda", JMZ: "Mazda", TSM: "Suzuki", JSA: "Suzuki", JMB: "Mitsubishi", YV1: "Volvo", SAL: "Land Rover",
+  SAJ: "Jaguar", VX1: "Opel", ZCF: "Iveco" };
+
+const Chq = { conectado: false, info: null, averias: null, f: {}, reg: null, ocupado: false, vivo: null, lista: [] };
+const chqHay = () => !!(window.MOTOR && MOTOR.chq);
+const n_ = (x, d = 0) => x == null || !isFinite(x) ? "N/A" : Number(x).toLocaleString("es-ES", { minimumFractionDigits: d, maximumFractionDigits: d });
+const chqSigno = (x, d = 1) => x == null ? "N/A" : (x > 0 ? "+" : "") + n_(x, d);
+
+function chqAbrir() {
+  $("chqSoloMovil").hidden = chqHay();
+  $("chqConectarBox").hidden = !chqHay();
+  if (!chqHay()) { chqCargarLista(); return; }
+  const sel = $("chqDestino");
+  if (!sel.options.length) sel.innerHTML = (MOTOR.opcionesLector || [["ble", "Lector OBD por Bluetooth"]])
+    .map(([v, t]) => `<option value="${v}">${esc(t)}</option>`).join("");
+  MOTOR.chq("estado").then(r => {
+    const d = r.dato || {};
+    $("chqOtroAviso").hidden = !d.otro_coche || d.conectado;
+    if (d.conectado && !Chq.conectado) chqYaConectado(d.info);
+  });
+  chqCargarLista();
+  chqVivoEmpieza();
+}
+
+async function chqConectar() {
+  $("chqBtnCon").disabled = true;
+  $("chqMsgCon").textContent = "Conectando… (el coche puede tardar hasta 15 segundos en contestar)";
+  const r = await MOTOR.chq("conectar", { destino: $("chqDestino").value });
+  $("chqBtnCon").disabled = false;
+  if (!r.ok) { $("chqMsgCon").textContent = r.error; return; }
+  $("chqMsgCon").textContent = "";
+  chqYaConectado(r.dato);
+}
+
+function chqYaConectado(info) {
+  Object.assign(Chq, { conectado: true, info, averias: null, f: {}, mal: {}, reg: null });
+  $("chqIgual").hidden = true;
+  $("chqConectarBox").hidden = true; $("chqConectadoBox").hidden = false; $("chqOtroAviso").hidden = true;
+  $("chqProto").textContent = "Conectado · " + (info.protocolo || "OBD");
+  ["chqDatos", "chqCaptura"].forEach(id => $(id).hidden = false);
+  $("chqResultado").hidden = true;
+  for (const id of ["chqVin", "chqMatricula", "chqMarca", "chqModelo", "chqAnio", "chqMotor", "chqKm", "chqSintoma"]) $(id).value = "";
+  $("chqVin").value = info.vin || "";
+  chqVinCambia();
+  chqFaseUI(1, "", ""); chqFaseUI(2, "", ""); $("chqBtnF2").disabled = true;
+  $("chqAverias").className = "vacio"; $("chqAverias").textContent = "Leyendo…";
+  MOTOR.chq("averias").then(r => {
+    Chq.averias = r.ok ? r.dato : null;
+    $("chqAverias").className = "";
+    $("chqAverias").innerHTML = r.ok ? chqAveriasHTML(r.dato) : `<span class="nube-mal">${esc(r.error)}</span>`;
+  });
+  chqVivoEmpieza();
+}
+
+function chqAveriasHTML(a) {
+  const lista = (t, xs) => `<div style="margin:4px 0"><b>${t}:</b> ${xs.length ? xs.map(x => `<div class="hallazgo ${x.gravedad >= 3 ? "rojo" : "amarillo"}"><span class="ico">!</span><div><div class="t">${esc(x.codigo)}</div><div class="d">${esc(x.descripcion)}</div></div></div>`).join("") : "ninguna"}</div>`;
+  const m = a.monitores;
+  return lista("Guardadas (03)", a.guardadas) + lista("Pendientes (07)", a.pendientes)
+    + (a.permanentes.length ? lista("Permanentes (0A)", a.permanentes) : "")
+    + (m ? `<div class="mensaje-con">Testigo ${m.testigo ? "<b>ENCENDIDO</b>" : "apagado"} · autodiagnósticos: ${m.monitores.filter(x => x.completo).length} de ${m.monitores.length} completos</div>` : "");
+}
+
+async function chqDesconectar() {
+  await MOTOR.chq("soltar");
+  Chq.conectado = false;
+  $("chqConectarBox").hidden = false; $("chqConectadoBox").hidden = true;
+  ["chqDatos", "chqCaptura"].forEach(id => $(id).hidden = true);
+  $("chqOtroAviso").hidden = false;
+}
+
+async function chqVolver() {
+  await MOTOR.chq("volver");
+  Chq.conectado = false;
+  $("chqConectarBox").hidden = false; $("chqConectadoBox").hidden = true; $("chqOtroAviso").hidden = true;
+  ["chqDatos", "chqCaptura"].forEach(id => $(id).hidden = true);
+  tostada("Listo: la app volverá a conectarse sola al Sandero");
+}
+
+function chqVivoEmpieza() {  // rpm y temperatura en pantalla mientras se espera (para saber si está caliente o a 2.500)
+  if (Chq.vivo) return;
+  Chq.vivo = setInterval(async () => {
+    if (!Chq.conectado || Chq.ocupado || !$("p-chequeo").classList.contains("activa") || document.hidden) return;
+    Chq.ocupado = true;
+    try {
+      const r = await MOTOR.chq("leer", { pids: [0x0C, 0x05] });
+      if (r.ok) {
+        const v = r.dato, t = v.ect;
+        $("chqVivo").innerHTML = `Ahora: <b>${n_(v.rpm)}</b> rpm · motor <b>${n_(t)}</b> °C`
+          + (t != null && t < 80 ? ` · <span style="color:var(--amarillo)">aún frío: espera a que salte el ventilador</span>` : "");
+      } else if (/conexi/i.test(r.error || "")) { Chq.conectado = false; chqDesconectar(); }
+    } finally { Chq.ocupado = false; }
+  }, 1500);
+}
+
+function chqVinCambia() {
+  const vin = $("chqVin").value.trim().toUpperCase();
+  const marca = CHQ_WMI[vin.slice(0, 3)];
+  if (marca && !$("chqMarca").value) $("chqMarca").value = marca;
+  const prev = Chq.lista.slice().reverse().find(x => vin && x.vehiculo && x.vehiculo.vin === vin);
+  if (prev) {  // ya se miró antes: rellenar con lo que se puso aquella vez
+    const v = prev.vehiculo;
+    const pon = (id, x) => { if (!$(id).value && x) $(id).value = x; };
+    pon("chqMatricula", v.matricula); pon("chqMarca", v.marca); pon("chqModelo", v.modelo); pon("chqAnio", v.anio); pon("chqMotor", v.motor);
+    if (v.combustible) $("chqComb").value = v.combustible;
+  }
+}
+
+function chqFaseUI(n, clase, texto) {
+  $("chqF" + n).className = "chq-fase" + (clase ? " " + clase : "");
+  if (texto) $("chqF" + n + "Txt").innerHTML = texto;
+  else $("chqF" + n + "Txt").textContent = n === 1 ? "No toques el acelerador." : "Pisa hasta ~2.500 rpm, aguanta y, cuando esté estable, pulsa.";
+}
+
+async function chqFase(n) {
+  if (Chq.ocupado) { setTimeout(() => chqFase(n), 300); return; }
+  Chq.ocupado = true;
+  const btn = $("chqBtnF" + n);
+  btn.disabled = true;
+  let s = 5;
+  const aviso = n === 1 ? "No toques el acelerador" : "Mantén ~2.500 rpm";
+  chqFaseUI(n, "", `<b>Capturando… ${aviso}</b> (${s} s)`);
+  const reloj = setInterval(() => { s = Math.max(0, s - 1); chqFaseUI(n, "", `<b>Capturando… ${aviso}</b> (${s ? s + " s" : "terminando"})`); }, 1000);
+  const r = await MOTOR.chq("muestra", { segundos: 5, rpmDemo: n === 2 ? 2500 : 0 });
+  clearInterval(reloj);
+  Chq.ocupado = false;
+  btn.disabled = false;
+  if (!r.ok) { chqFaseUI(n, "mal", `<span class="nube-mal">${esc(r.error)}</span>`); return; }
+  const f = chqResumenFase(r.dato);
+  Chq.f[n === 1 ? "ralenti" : "rpm_2500"] = f;
+  Chq.mal = Chq.mal || {};
+  const rpm = f.resumen.rpm && f.resumen.rpm.media, ect = f.resumen.ect && f.resumen.ect.media;
+  const mal = rpm == null ? "No llegaron las revoluciones." :
+    n === 1 && rpm > 1100 ? `Media ${n_(rpm)} rpm: ¿estaba al ralentí? Repite sin tocar el acelerador.` :
+    n === 2 && (rpm < 2200 || rpm > 2800) ? `Media ${n_(rpm)} rpm: tiene que estar entre 2.200 y 2.800. Repite.` : "";
+  chqFaseUI(n, mal ? "mal" : "hecha", `${mal ? "⚠️ " + mal : "✓ Hecha"} · ${n_(rpm)} rpm · motor ${n_(ect)} °C · ${n_(f.segundos, 1)} s, ${f.vueltas} vueltas`);
+  Chq.mal[n] = !!mal;
+  if (n === 1) $("chqBtnF2").disabled = false;
+  const ambas = Chq.f.ralenti && Chq.f.rpm_2500, alguna = Chq.mal[1] || Chq.mal[2];
+  $("chqIgual").hidden = !(ambas && alguna);
+  if (ambas && !alguna) chqTerminar();
+}
+
+function chqResumenFase(d) {
+  const resumen = {};
+  for (const [k, serie] of Object.entries(d.series || {})) {
+    const v = serie.map(x => x[1]);
+    if (!v.length) continue;
+    const r = { media: v.reduce((a, b) => a + b, 0) / v.length, min: Math.min(...v), max: Math.max(...v), n: v.length };
+    if (k === "o2_s1" || k === "o2_s2") {
+      let cruces = 0;
+      for (let i = 1; i < v.length; i++) if ((v[i - 1] - 0.45) * (v[i] - 0.45) < 0) cruces++;
+      const dur = serie.length > 1 ? serie[serie.length - 1][0] - serie[0][0] : 0;
+      r.cruces = cruces;
+      r.cruces_10s = dur > 0 ? cruces / dur * 10 : null;
+      r.lecturas_s = dur > 0 ? (v.length - 1) / dur : null;
+    }
+    if (k === "lazo") r.cerrado = v.every(x => x === 2 || x === 16) ? true : v.some(x => x === 2 || x === 16) ? "a ratos" : false;
+    resumen[k] = r;
+  }
+  if (resumen.stft && resumen.ltft) resumen.total = { media: resumen.stft.media + resumen.ltft.media };
+  return { segundos: d.segundos, vueltas: d.vueltas, resumen, no_soportados: d.no_soportados, series: d.series };
+}
+
+function chqVehiculo() {
+  const v = { vin: $("chqVin").value.trim().toUpperCase(), matricula: $("chqMatricula").value.trim().toUpperCase(),
+    marca: $("chqMarca").value.trim(), modelo: $("chqModelo").value.trim(), anio: $("chqAnio").value.trim(),
+    combustible: $("chqComb").value, motor: $("chqMotor").value.trim(), km: $("chqKm").value.trim() };
+  for (const k of Object.keys(v)) if (!v[k]) delete v[k];
+  return v;
+}
+const chqIdVehiculo = v => v.vin || v.matricula || [v.marca, v.modelo, v.anio].filter(Boolean).join(" ") || "Sin identificar";
+const chqNombre = v => [v.marca, v.modelo, v.anio].filter(Boolean).join(" ") || v.matricula || v.vin || "Coche sin nombre";
+
+async function chqTerminar() {
+  $("chqIgual").hidden = true;
+  const ahora = new Date(), d = x => String(x).padStart(2, "0");
+  const id = `${ahora.getFullYear()}-${d(ahora.getMonth() + 1)}-${d(ahora.getDate())}_${d(ahora.getHours())}${d(ahora.getMinutes())}${d(ahora.getSeconds())}`;
+  const vehiculo = chqVehiculo();
+  const reg = { id, fecha: ahora.toISOString(), vehiculo_id: chqIdVehiculo(vehiculo), vehiculo,
+    sintoma: $("chqSintoma").value.trim(),
+    lector: { protocolo: Chq.info && Chq.info.protocolo, version: Chq.info && Chq.info.version, pids_soportados: Chq.info && Chq.info.soportados },
+    averias: Chq.averias, fases: Chq.f, app: MOTOR.version };
+  reg.hallazgos = chqReglas(reg);
+  Chq.reg = reg;
+  chqPintarResultado(reg);
+  const r = await MOTOR.chq("guardar", { registro: reg });
+  tostada(r.dato && r.dato.subido ? "Chequeo guardado (y subido a GitHub)" : "Chequeo guardado en el móvil");
+  chqCargarLista();
+}
+
+// ---- reglas de coherencia (orientativas; la IA afina)
+function chqReglas(reg) {
+  const out = [], h = (nivel, titulo, texto) => out.push({ nivel, titulo, texto });
+  const R = (reg.fases.ralenti || {}).resumen || {}, A = (reg.fases.rpm_2500 || {}).resumen || {};
+  const m = (F, k) => F[k] ? F[k].media : null;
+  const diesel = (reg.vehiculo.combustible || "") === "Diésel";
+  const av = reg.averias;
+  if (av) {
+    const n = av.guardadas.length + av.pendientes.length;
+    if (n) h("rojo", `${n} avería${n > 1 ? "s" : ""} en memoria`, [...av.guardadas, ...av.pendientes].map(x => x.codigo).join(", ") + ". Crúzalas con lo de abajo.");
+    else h("verde", "Sin averías guardadas ni pendientes", "Aun así se miran los sensores: hay fallos que no encienden el testigo.");
+  }
+  // temperatura
+  const ect = m(R, "ect"), iat = m(R, "iat");
+  if (ect == null) h("gris", "Sin temperatura del motor", "El coche no da el PID 05.");
+  else if (ect > 105) h("rojo", `Motor muy caliente (${n_(ect)} °C)`, "Por encima de 105 °C al ralentí: ventilador, nivel de refrigerante, bomba de agua o junta de culata.");
+  else if (ect < 75) h("rojo", `Motor frío (${n_(ect)} °C)`, "Así la mezcla y las sondas no valen. Espera a que salte el ventilador y repite. Si tras 15 min no pasa de 80 °C: termostato abierto o sensor que marca de menos.");
+  else if (ect < 80) h("amarillo", `Temperatura justa (${n_(ect)} °C)`, "Por debajo de 80 °C con el motor en marcha un rato: termostato que abre antes de tiempo o sensor de temperatura que miente.");
+  else h("verde", `Temperatura del motor bien (${n_(ect)} °C)`, "");
+  if (ect != null && iat != null && ect >= 80) {
+    if (iat >= ect - 5) h("amarillo", "Aire de admisión casi tan caliente como el motor", `IAT ${n_(iat)} °C con ECT ${n_(ect)} °C: uno de los dos sensores miente (o el coche lleva mucho rato parado al ralentí).`);
+    else if (iat > 65) h("amarillo", `Aire de admisión muy caliente (${n_(iat)} °C)`, "Normal tras mucho ralentí con el capó cerrado; si no, sensor IAT.");
+  }
+  // lazo cerrado
+  for (const [F, nom] of [[R, "al ralentí"], [A, "a 2.500 rpm"]])
+    if (!diesel && F.lazo && F.lazo.cerrado !== true) h("amarillo", `Lazo abierto ${nom}`, "La centralita no estaba usando la sonda: las correcciones de esa fase no son fiables (motor frío, sonda o fallo).");
+  // mezcla
+  const t1 = m(R, "total"), t2 = m(A, "total");
+  if (diesel) h("gris", "Mezcla: no aplica en diésel", "Los diésel no suelen dar STFT/LTFT.");
+  else if (t1 == null || t2 == null) h("gris", "Mezcla: faltan datos", "El coche no da la corrección corta o la larga (PID 06/07).");
+  else {
+    const txt = `STFT+LTFT: ${chqSigno(t1)} % al ralentí y ${chqSigno(t2)} % a 2.500 rpm.`;
+    const peor = Math.max(Math.abs(t1), Math.abs(t2)), nivel = peor > 25 ? "rojo" : "amarillo";
+    if (peor <= 10) h("verde", "Mezcla bien", txt + " Dentro de ±10 %.");
+    else if (t1 > 10 && t1 - t2 >= 5) h(nivel, "Pobre al ralentí que mejora al acelerar: toma de aire", txt + " Firma típica de fuga de vacío (manguitos, junta de admisión, servofreno, PCV).");
+    else if (t1 > 10 || t2 > 10) h(nivel, "Pobre también (o más) al acelerar: falta gasolina o el MAF/MAP mide de menos", txt + " Presión de gasolina (bomba/regulador), inyectores, o MAF/MAP sucio.");
+    else if (t1 < -10 && t1 - t2 <= -5) h(nivel, "Rica al ralentí que mejora al acelerar", txt + " Inyector que gotea, canister/purga abierta o aceite con gasolina.");
+    else h(nivel, "Mezcla rica", txt + " Presión de gasolina alta, inyectores, sensor de temperatura que marca frío, MAF/MAP que mide de más o sonda.");
+  }
+  // sondas
+  const s1 = A.o2_s1 || R.o2_s1, s2 = A.o2_s2 || R.o2_s2;
+  if (!diesel && s1) {
+    const lento = s1.lecturas_s != null && s1.lecturas_s < 2 ? " (el coche contesta despacio: orientativo)" : "";
+    const rango = s1.max - s1.min;
+    if (rango < 0.3) h("amarillo", "La sonda delantera casi no se mueve", `${n_(s1.min, 2)}–${n_(s1.max, 2)} V${lento}. Sonda vieja/perezosa o mezcla muy desviada (mírala con la de la mezcla).`);
+    else if (s1.cruces_10s != null && s1.cruces_10s < 2) h("amarillo", "Sonda delantera lenta", `${n_(s1.cruces_10s, 1)} cambios rico/pobre cada 10 s (debería ser ≥ 3-5)${lento}.`);
+    else h("verde", "Sonda delantera oscila", `${n_(s1.min, 2)}–${n_(s1.max, 2)} V, ${n_(s1.cruces_10s, 1)} cambios cada 10 s${lento}.`);
+    if (s2) {
+      if (s1.cruces && s2.cruces >= 0.6 * s1.cruces && s2.max - s2.min > 0.4) h("amarillo", "La sonda trasera copia a la delantera: catalizador gastado", `Trasera ${n_(s2.min, 2)}–${n_(s2.max, 2)} V con ${s2.cruces} cambios (delantera ${s1.cruces}).`);
+      else if (s2.media < 0.2) h("amarillo", `Sonda trasera muy baja (${n_(s2.media, 2)} V)`, "Mezcla pobre, entrada de aire en el escape antes de la sonda, catalizador vacío o sonda.");
+      else h("verde", "Sonda trasera estable", `${n_(s2.min, 2)}–${n_(s2.max, 2)} V: el catalizador trabaja.`);
+    }
+  } else if (!diesel) h("gris", "Sin sondas lambda", "El coche no da los PID 14/15.");
+  // carga de batería
+  const v = m(R, "v_ecu") ?? m(R, "bateria_atrv");
+  if (v != null) {
+    const txt = `${n_(v, 2)} V al ralentí (${R.v_ecu ? "centralita, PID 42" : "lector, AT RV"}).`;
+    if (v < 13.2) h("rojo", "El alternador no carga bien", txt + " Normal 13,8-14,5 V. Ojo: algunos coches modernos con alternador «inteligente» bajan a 12,5-13 V a propósito; confirmar con polímetro.");
+    else if (v < 13.7) h("amarillo", "Carga algo floja", txt + " Normal 13,8-14,5 V. Confirmar con polímetro en la batería (el lector puede marcar algo menos).");
+    else if (v > 14.8) h("rojo", "Sobrecarga", txt + " Regulador del alternador.");
+    else h("verde", "Carga bien", txt);
+  }
+  // MAP / MAF / ralentí
+  const map1 = m(R, "map"), map2 = m(A, "map");
+  if (!diesel && map1 != null) {
+    if (map1 > 45) h("amarillo", `Poco vacío al ralentí (MAP ${n_(map1)} kPa)`, "Normal 25-40 kPa en gasolina: toma de aire grande, distribución/válvulas o sensor MAP.");
+    if (map2 != null && map2 > map1 + 5) h("amarillo", "El MAP sube a 2.500 rpm en vacío", `${n_(map1)} → ${n_(map2)} kPa: en vacío debería bajar o quedarse igual. Sensor MAP o tubo de vacío.`);
+  }
+  const maf1 = m(R, "maf"), maf2 = m(A, "maf");
+  if (maf1 != null && maf2 != null && maf1 > 0 && maf2 / maf1 < 1.8) h("amarillo", "El caudalímetro sube poco", `${n_(maf1, 1)} → ${n_(maf2, 1)} g/s (suele multiplicarse por 2,5-3,5): MAF sucio o toma de aire después del MAF.`);
+  if (R.rpm && R.rpm.max - R.rpm.min > 150) h("amarillo", "Ralentí inestable", `Va de ${n_(R.rpm.min)} a ${n_(R.rpm.max)} rpm.`);
+  if (R.rpm && ect >= 80 && R.rpm.media > 1000) h("amarillo", `Ralentí alto en caliente (${n_(R.rpm.media)} rpm)`, "Toma de aire, motor/válvula de ralentí o mariposa sucia.");
+  if (R.mariposa && R.mariposa.media > 25) h("amarillo", `Mariposa al ${n_(R.mariposa.media)} % al ralentí`, "Con el pie fuera debería marcar poco: potenciómetro de la mariposa o ajuste.");
+  if ((R.velocidad && R.velocidad.max > 0) || (A.velocidad && A.velocidad.max > 0)) h("amarillo", "El coche se movió durante la captura", "Repite parado.");
+  return out;
+}
+
+// ---- resultado
+function chqTablaHTML(reg) {
+  const R = (reg.fases.ralenti || {}).resumen || {}, A = (reg.fases.rpm_2500 || {}).resumen || {};
+  const celda = (F, k, u, d) => {
+    const x = F[k];
+    if (!x || x.media == null) return "N/A";
+    let t = n_(x.media, d);
+    if (x.min != null && (k.startsWith("o2_") || k === "rpm")) t += `<small>${n_(x.min, d)}–${n_(x.max, d)}${x.cruces != null ? ` · ${x.cruces} cruces` : ""}</small>`;
+    return t;
+  };
+  const filas = CHQ_FILAS.filter(([k]) => R[k] || A[k] || !["v_ecu", "bateria_atrv", "total"].includes(k))
+    .map(([k, nom, u, d]) => `<tr><td>${nom} <small>${u}</small></td><td>${celda(R, k, u, d)}</td><td>${celda(A, k, u, d)}</td></tr>`).join("");
+  const lazo = F => !F.lazo ? "N/A" : F.lazo.cerrado === true ? "cerrado" : F.lazo.cerrado ? "a ratos" : "abierto";
+  return `<div class="tabla-scroll"><table class="tabla-comp chq-tabla"><thead><tr><th>Parámetro</th><th>Ralentí</th><th>2.500 rpm</th></tr></thead>
+    <tbody>${filas}<tr><td>Lazo de la sonda</td><td>${lazo(R)}</td><td>${lazo(A)}</td></tr></tbody></table></div>`;
+}
+
+function chqPintarResultado(reg) {
+  const p = $("chqResultado");
+  p.hidden = false;
+  const ant = chqAnterior(reg);
+  p.innerHTML = `<div class="fila" style="justify-content:space-between"><h2 style="margin:0">3 · Resultado</h2>
+      <span class="mensaje-con" style="margin:0">${esc(chqNombre(reg.vehiculo))} · ${esc(reg.id.replace("_", " "))}</span></div>
+    ${reg.sintoma ? `<p class="mensaje-con">Síntoma: <b>${esc(reg.sintoma)}</b></p>` : ""}
+    <h3>Coherencia (revisión automática)</h3>
+    ${reg.hallazgos.map(x => `<div class="hallazgo ${x.nivel}"><span class="ico">${x.nivel === "verde" ? "✓" : x.nivel === "gris" ? "–" : "!"}</span><div><div class="t">${esc(x.titulo)}</div>${x.texto ? `<div class="d">${esc(x.texto)}</div>` : ""}</div></div>`).join("")}
+    <h3>Ralentí frente a 2.500 rpm</h3>
+    ${chqTablaHTML(reg)}
+    ${ant ? `<h3>Antes y después</h3>${chqCompararHTML(ant, reg)}` : ""}
+    <h3>Preguntar a Claude</h3>
+    <p class="mensaje-con" style="margin-top:0">Se prepara un texto con las instrucciones de taller y todos los datos${ant ? " (también el chequeo anterior de este coche)" : ""}.
+      Pégalo en un chat nuevo de Claude: contesta al momento, sin clave ni coste aparte.</p>
+    <div class="chq-ia">
+      ${navigator.share ? `<button class="boton primario" onclick="chqIA('compartir')">📤 Enviar a la app de Claude</button>` : ""}
+      <button class="boton ${navigator.share ? "" : "primario"}" onclick="chqIA('copiar')">📋 Copiar y abrir Claude</button>
+    </div>
+    <details class="chq-prompt"><summary>Ver el texto que se manda</summary><textarea class="caja" readonly id="chqPromptTxt">${esc(chqPrompt(reg))}</textarea></details>`;
+  p.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function chqAnterior(reg) {
+  return Chq.lista.filter(x => x.vehiculo_id === reg.vehiculo_id && x.id < reg.id).sort((a, b) => a.id < b.id ? 1 : -1)[0] || null;
+}
+
+function chqDatosIA(reg) {
+  const R = (reg.fases.ralenti || {}).resumen || {}, A = (reg.fases.rpm_2500 || {}).resumen || {};
+  const val = (F, k, d) => F[k] && F[k].media != null ? Math.round(F[k].media * 10 ** d) / 10 ** d : "N/A";
+  const tabla = {};
+  for (const [k, nom, u, d] of CHQ_FILAS) {
+    if (!R[k] && !A[k] && ["v_ecu", "bateria_atrv", "total"].includes(k)) continue;
+    tabla[nom] = { unidad: u, ralenti: val(R, k, d), rpm_2500: val(A, k, d) };
+    for (const [F, f] of [[R, "ralenti"], [A, "rpm_2500"]]) if (F[k] && (k.startsWith("o2_") || k === "rpm"))
+      tabla[nom][f + "_min_max"] = [Math.round(F[k].min * 100) / 100, Math.round(F[k].max * 100) / 100];
+    for (const [F, f] of [[R, "ralenti"], [A, "rpm_2500"]]) if (F[k] && F[k].cruces != null)
+      tabla[nom][f + "_cruces_0_45V"] = `${F[k].cruces} en ${n_(reg.fases[f].segundos, 1)} s (${F[k].n} lecturas)`;
+  }
+  const lazo = F => !F.lazo ? "N/A" : F.lazo.cerrado === true ? "cerrado" : F.lazo.cerrado ? "a ratos" : "abierto";
+  tabla["Lazo de la sonda (01 03)"] = { ralenti: lazo(R), rpm_2500: lazo(A) };
+  const av = reg.averias;
+  const cods = xs => (xs || []).map(x => ({ codigo: x.codigo, descripcion: x.descripcion }));
+  return {
+    vehiculo: reg.vehiculo, sintoma: reg.sintoma || "No indicado", fecha: reg.fecha.slice(0, 16).replace("T", " "),
+    dtc: av ? { guardados_03: cods(av.guardadas), pendientes_07: cods(av.pendientes), permanentes_0A: cods(av.permanentes),
+      testigo_encendido: av.monitores ? av.monitores.testigo : "N/A",
+      autodiagnosticos: av.monitores ? av.monitores.monitores.map(x => `${x.nombre}: ${x.completo ? "completo" : "incompleto"}`) : "N/A" } : "No se pudieron leer",
+    tabla_ralenti_vs_2500: tabla,
+    condiciones: { duracion_s: { ralenti: reg.fases.ralenti && reg.fases.ralenti.segundos, rpm_2500: reg.fases.rpm_2500 && reg.fases.rpm_2500.segundos },
+      protocolo: reg.lector.protocolo || "N/A", pids_no_soportados: (reg.fases.ralenti || {}).no_soportados || [],
+      nota_lector: "Lector ELM327 Bluetooth genérico; en protocolos lentos (KWP/ISO) hay ~5 lecturas/s en total, así que la cuenta de cruces de las sondas es orientativa. AT RV mide en la toma OBD (corregido según polímetro si estaba ajustado)." },
+  };
+}
+
+function chqPrompt(reg) {
+  const datos = chqDatosIA(reg), ant = chqAnterior(reg);
+  if (ant) datos.chequeo_anterior_mismo_coche = { fecha: ant.fecha.slice(0, 16).replace("T", " "), sintoma: ant.sintoma || "No indicado",
+    tabla_ralenti_vs_2500: chqDatosIA(ant).tabla_ralenti_vs_2500, dtc: chqDatosIA(ant).dtc };
+  return `Actúa siguiendo estas instrucciones:\n\n${CHQ_PROMPT}\n\n---\nDATOS DEL CHEQUEO (JSON):\n${JSON.stringify(datos, null, 1)}`
+    + (ant ? "\n\nHay un chequeo anterior del mismo coche: compara antes y después (por ejemplo, la evolución del LTFT) y di si la reparación ha servido." : "");
+}
+
+async function chqIA(modo) {
+  const reg = Chq.reg;
+  if (!reg) return;
+  const texto = chqPrompt(reg);
+  if (modo === "compartir" && navigator.share) {
+    try { await navigator.share({ text: texto }); return; } catch (e) { if (e.name === "AbortError") return; }
+  }
+  let copiado = false;
+  try { await navigator.clipboard.writeText(texto); copiado = true; } catch {
+    const t = $("chqPromptTxt");
+    if (t) { t.closest("details").open = true; t.select(); try { copiado = document.execCommand("copy"); } catch {} }
+  }
+  tostada(copiado ? "Copiado: pégalo en el chat de Claude" : "No se pudo copiar solo: mantén pulsado el texto y cópialo");
+  if (copiado) window.open("https://claude.ai/new", "_blank");
+}
+
+// ---- historial por coche
+async function chqCargarLista() {
+  if (!chqHay()) { $("chqHistorial").textContent = "El historial de chequeos está en el móvil."; return; }
+  const r = await MOTOR.chq("lista");
+  Chq.lista = (r.dato || []).sort((a, b) => a.id < b.id ? -1 : 1);
+  const coches = {};
+  for (const x of Chq.lista) (coches[x.vehiculo_id] ||= []).push(x);
+  const ids = Object.keys(coches).sort((a, b) => coches[a].at(-1).id < coches[b].at(-1).id ? 1 : -1);
+  if (!ids.length) { $("chqHistorial").className = "vacio"; $("chqHistorial").textContent = "Todavía no hay chequeos."; return; }
+  $("chqHistorial").className = "";
+  $("chqHistorial").innerHTML = ids.map(id => {
+    const xs = coches[id], ult = xs.at(-1);
+    return `<div class="chq-coche"><b>${esc(chqNombre(ult.vehiculo))}</b> <span class="mensaje-con">${esc(id)} · ${xs.length} chequeo${xs.length > 1 ? "s" : ""}</span>
+      <div class="fila" style="margin-top:6px">${xs.slice().reverse().map(x => {
+        const malos = x.hallazgos.filter(h => h.nivel === "rojo" || h.nivel === "amarillo").length;
+        return `<button class="boton chico" onclick="chqVer('${x.id}')">${esc(x.id.slice(0, 10))} ${esc(x.id.slice(11, 13))}:${esc(x.id.slice(13, 15))} <span class="estado ${malos ? "amarillo" : "verde"}">${malos ? malos + " avisos" : "bien"}</span></button>`;
+      }).join("")}</div></div>`;
+  }).join("");
+}
+
+function chqVer(id) {
+  const reg = Chq.lista.find(x => x.id === id);
+  if (!reg) return;
+  Chq.reg = reg;
+  chqPintarResultado(reg);
+  $("chqResultado").insertAdjacentHTML("beforeend", `<div class="fila" style="margin-top:12px;justify-content:flex-end">
+    <button class="boton chico peligro" onclick="chqBorrar('${reg.id}')">Borrar este chequeo</button></div>`);
+}
+
+async function chqBorrar(id) {
+  if (!confirm("¿Borrar este chequeo del móvil? (Si se subió a GitHub, allí se queda.)")) return;
+  await MOTOR.chq("borrar", { id });
+  $("chqResultado").hidden = true;
+  chqCargarLista();
+}
+
+function chqCompararHTML(antes, ahora) {
+  const g = (reg, f, k) => { const x = ((reg.fases[f] || {}).resumen || {})[k]; return x ? x.media : null; };
+  const filas = [["ralenti", "total", "Mezcla STFT+LTFT al ralentí", "%", 1], ["rpm_2500", "total", "Mezcla STFT+LTFT a 2.500", "%", 1],
+    ["ralenti", "ltft", "LTFT al ralentí", "%", 1], ["ralenti", "ect", "Temperatura motor", "°C", 0], ["ralenti", "map", "MAP al ralentí", "kPa", 0],
+    ["ralenti", "v_ecu", "Tensión centralita", "V", 2], ["ralenti", "bateria_atrv", "Batería (AT RV)", "V", 2], ["rpm_2500", "o2_s2", "Sonda trasera a 2.500", "V", 2]]
+    .filter(([f, k]) => g(antes, f, k) != null || g(ahora, f, k) != null)
+    .map(([f, k, nom, u, d]) => {
+      const a = g(antes, f, k), b = g(ahora, f, k);
+      return `<tr><td>${nom} <small>${u}</small></td><td>${n_(a, d)}</td><td>${n_(b, d)}</td><td>${a != null && b != null ? chqSigno(b - a, d) : "–"}</td></tr>`;
+    }).join("");
+  const nav = (reg) => reg.averias ? reg.averias.guardadas.length + reg.averias.pendientes.length : "N/A";
+  return `<div class="tabla-scroll"><table class="tabla-comp"><thead><tr><th></th><th>${esc(antes.id.slice(0, 10))}</th><th>${esc(ahora.id.slice(0, 10))}</th><th>Cambio</th></tr></thead>
+    <tbody>${filas}<tr><td>Averías</td><td>${nav(antes)}</td><td>${nav(ahora)}</td><td></td></tr></tbody></table></div>`;
+}
 </script>
 </body>
 </html>

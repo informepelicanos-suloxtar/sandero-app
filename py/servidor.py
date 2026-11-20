@@ -25,6 +25,7 @@ from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 import analisis
+import deposito
 import diagnostico
 import pids
 import rutas
@@ -635,6 +636,28 @@ def importar_archivos(archivos):
     return out
 
 
+def km_centralita_ahora():
+    """El contador de km de la centralita: el de ahora si hay lector conectado; si no, el último grabado."""
+    v = LECTOR.valores.get("km_desde_borrado") if LECTOR.elm else None
+    if v is None and LECTOR.elm:
+        v = (LECTOR.averias or {}).get("km_desde_borrado")
+    return v if v is not None else deposito.km_centralita_reciente(REGISTROS)
+
+
+def ver_deposito():
+    return deposito.vista(BASE, REGISTROS, LECTOR.ajustes.get("factor_consumo"))
+
+
+def cambiar_deposito(cuerpo):
+    """⛽ Depósito: {"nueva": {...}} apunta una lectura del cuadro o un repostaje; {"borrar": id} la quita."""
+    if cuerpo.get("borrar"):
+        if not deposito.borrar(BASE, str(cuerpo["borrar"])):
+            return False, "No encuentro esa anotación"
+        return True, ver_deposito()
+    ok, dato = deposito.anadir(BASE, cuerpo.get("nueva") or {}, km_centralita_ahora())
+    return (True, ver_deposito()) if ok else (False, dato)
+
+
 def definiciones():
     return {"pids": pids.lista_definiciones(), "coche": COCHE, "sistemas": diagnostico.SISTEMAS,
             "nombres_sistema": diagnostico.NOMBRE_SISTEMA}
@@ -800,6 +823,8 @@ class Manejador(BaseHTTPRequestHandler):
             return self._json(lista_sesiones())
         if ruta == "/api/mantenimiento":
             return self._json(leer_mantenimiento())
+        if ruta == "/api/deposito":
+            return self._json(ver_deposito())
         if ruta == "/api/claude":
             return self._json(leer_claude())
         if ruta == "/api/rutas":
@@ -887,6 +912,9 @@ class Manejador(BaseHTTPRequestHandler):
             return self._json({"ok": ok, "dato" if ok else "error": dato}, 200 if ok else 400)
         if ruta == "/api/mantenimiento":
             return self._json({"ok": True, "dato": marcar_mantenimiento(cuerpo)})
+        if ruta == "/api/deposito":
+            ok, dato = cambiar_deposito(cuerpo)
+            return self._json({"ok": ok, "dato" if ok else "error": dato}, 200 if ok else 400)
         if ruta == "/api/buzon":
             ok, dato = escribir_buzon(cuerpo.get("texto"))
             return self._json({"ok": ok, "dato" if ok else "error": dato}, 200 if ok else 400)

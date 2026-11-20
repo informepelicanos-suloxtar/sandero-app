@@ -13,6 +13,9 @@ import rutas
 
 BASE = Path(__file__).parent
 REGISTROS = BASE / "registros"
+# Sube cuando cambia algo que mueve las cifras de las revisiones ya hechas (se guarda en cada resumen.json).
+# 2 (20/11/2026): el consumo ya no suma la corrección de mezcla; la mezcla cuenta todos los viajes.
+VERSION_ANALISIS = 2
 
 
 def ajustes():
@@ -75,7 +78,10 @@ def historial_mezcla(antes_de=None):
                 r = json.loads((c / "resumen.json").read_text())
                 ses = json.loads((c / "sesion.json").read_text()) if (c / "sesion.json").exists() else {}
                 sim = "Simulador" in ((ses.get("lector") or {}).get("destino") or "")
-                m = (r.get("estadisticas") or {}).get("mezcla_caliente")
+                est = r.get("estadisticas") or {}
+                m = est.get("mezcla_caliente")
+                if m and m.get("km") is None:  # revisiones de antes del 20/11/2026: los km del consumo
+                    m = {**m, "km": (r.get("consumo") or est.get("consumo") or {}).get("km")}
                 _cache_mezcla[clave] = None if sim or not m else {"carpeta": n, **m}
             except (OSError, ValueError):
                 _cache_mezcla[clave] = None
@@ -94,7 +100,7 @@ def analizar(carpeta):
                                  corr_velocidad=corr_vel,
                                  historial_mezcla=[] if es_sim else historial_mezcla(antes_de=carpeta.name))
     resumen = {"carpeta": carpeta.name, "prueba": sesion.get("prueba"), "inicio": sesion.get("inicio"),
-               "filas": len(filas), "notas": sesion.get("notas", []), **d}
+               "filas": len(filas), "notas": sesion.get("notas", []), "version_analisis": VERSION_ANALISIS, **d}
     (carpeta / "resumen.json").write_text(json.dumps(resumen, ensure_ascii=False, indent=2))
     icono = {"rojo": "[!!]", "amarillo": "[! ]", "verde": "[ok]", "gris": "[--]"}
     lineas = [f"Revisión: {carpeta.name}  ({(sesion.get('prueba') or {}).get('nombre', 'libre')})", ""]

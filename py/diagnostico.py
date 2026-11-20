@@ -6,8 +6,8 @@ valores de cada sensor (o None).
 
 Consumo: el K7M no tiene caudalímetro, así que se estima por «densidad-velocidad»:
 aire = presión colector × cilindrada × rendimiento volumétrico × rpm / (R × temperatura).
-Gasolina = aire / 14,7 × (1 + correcciones). Error típico ±15 %; se puede ajustar con
-el factor de ajustes.json comparando con un repostaje real.
+Gasolina = aire / 14,7 (algo más con el motor frío). Las correcciones de mezcla NO se suman (ver consumo_lh).
+Error típico ±15 %; se ajusta con el factor de ajustes.json comparando con el depósito real (deposito.py).
 """
 import bisect
 import re
@@ -20,8 +20,9 @@ ESTEQUIOMETRICA = 14.7
 
 SISTEMAS = [
     {"id": "consumo", "nombre": "Consumo de gasolina",
-     "descripcion": "Cuánta gasolina gasta. El coche no lo dice directamente: se calcula con el aire que entra y las "
-                    "correcciones de mezcla (margen ±15 %). Abajo salen las cosas del coche que pueden estar subiendo el gasto.",
+     "descripcion": "Cuánta gasolina gasta. El coche no lo dice directamente: se calcula con el aire que entra (margen ±15 %; "
+                    "se ajusta con tus repostajes en Mantenimiento → ⛽ Depósito). Abajo salen las cosas del coche que pueden "
+                    "estar subiendo el gasto.",
      "sensores": ["consumo_l100", "consumo_lh", "combustible"]},
     {"id": "gasolina", "nombre": "Mezcla aire-gasolina e inyección",
      "descripcion": "El ordenador calcula cuánta gasolina inyectar según el aire que entra y la corrige con la sonda lambda. "
@@ -54,7 +55,13 @@ NOMBRE_SISTEMA = {s["id"]: s["nombre"] for s in SISTEMAS} | {"averias": "Avería
 # ------------------------------------------------------------------ consumo instantáneo
 
 def consumo_lh(v, factor=1.0):
-    """Litros por hora estimados con los últimos valores. None si faltan datos."""
+    """Litros por hora estimados con los últimos valores. None si faltan datos.
+
+    Con la sonda mandando (lazo cerrado) la mezcla sale justa: la gasolina es la que pide el aire que entra. Las
+    correcciones de mezcla (STFT/LTFT) no se suman: el coche las añade para llegar a esa mezcla justa (si la presión
+    o los inyectores se quedan cortos, abre más rato los inyectores, pero entra la misma gasolina). Hasta el 20/11/2026
+    se multiplicaba por (1 + STFT + LTFT): con este coche (+15/+20 %) salía un 15 % alto y además «mejoraba» solo
+    cuando bajaba la corrección."""
     rpm, presion = v.get("rpm"), v.get("map")
     if rpm is None or presion is None:
         return None
@@ -65,7 +72,7 @@ def consumo_lh(v, factor=1.0):
     temp_aire = v.get("temp_admision")
     temp_aire = 30 if temp_aire is None else temp_aire
     aire_gs = presion * 1000 * CILINDRADA_M3 * RENDIMIENTO_VOL * rpm / 120 / (287.05 * (temp_aire + 273.15)) * 1000
-    corr = 1 + ((v.get("stft") or 0) + (v.get("ltft") or 0)) / 100
+    corr = 1.0
     temp = v.get("temp_motor")
     if temp is not None and temp < 60:  # en frío enriquece (aproximado)
         corr *= 1 + (60 - temp) / 100
@@ -96,6 +103,29 @@ def _cruces(serie, umbral=0.45):
     return sum(1 for a, b in zip(serie, serie[1:]) if (a - umbral) * (b - umbral) < 0)
 
 
+def _lecturas(filas_sel, clave):
+    """(t, valor) de cada lectura nueva de un sensor en esas filas (las filas repiten el último valor leído)."""
+    out = []
+    for f in filas_sel:
+        v = f.get(clave)
+        if v is not None and (not out or v != out[-1][1]):
+            out.append((f["t"], v))
+    return out
+
+
+def _vaivenes(lect, bajo=0.3, alto=0.6):
+    """Vaivenes completos de una sonda lambda: de menos de 0,3 V a más de 0,6 V o al revés. Con ese margen, una
+    sonda trasera que ronda 0,45 V (mezcla algo pobre) no cuenta como que oscila."""
+    estado, n = None, 0
+    for _, v in lect:
+        e = "bajo" if v < bajo else "alto" if v > alto else None
+        if e and estado and e != estado:
+            n += 1
+        if e:
+            estado = e
+    return n
+
+
 def _n(x, dec=1):
     """Número a la española."""
     return f"{x:.{dec}f}".replace(".", ",")
@@ -118,18 +148,30 @@ def sistema_de(codigo):
 
 # La corrección de mezcla de este coche va a saltos (~4,7 %) y cambia mucho de un viaje a otro (+7,5…+21,8 con el
 # mismo coche y las mismas piezas), así que el veredicto se da con la media de varios viajes, no con uno solo.
-MEZCLA_MIN_VALIDO = 8     # minutos con el motor caliente y el lazo cerrado para que un viaje cuente
-MEZCLA_VIAJES = 5         # cuántos viajes (este incluido) entran en la media
-MEZCLA_MIN_VIAJES = 3     # por debajo de esto el veredicto es solo orientativo
+# Cuentan todas las salidas, cortas y largas (pedido por Saúl el 20/11/2026): la media es la de la última hora con el
+# motor caliente y cada viaje pesa los minutos que duró (los largos pesan más). Hasta entonces solo contaban los viajes
+# de 8 min o más, y una tarde entera de viajes cortos no entraba en la media.
+MEZCLA_MIN_VIAJE = 1      # min con el motor caliente y el lazo cerrado para que un viaje entre (con menos, baila)
+MEZCLA_KM_VIAJE = 0.5     # km: una grabación sin moverse (prueba de ralentí, purga del circuito) no es una salida
+MEZCLA_VENTANA = 60       # min de motor caliente, de los más recientes, que entran en la media
+MEZCLA_MIN_FIABLE = 20    # min: con menos, el veredicto es solo orientativo
 MAP_FUERTE = 80           # kPa: pisando fuerte el coche enriquece aposta y la mezcla no dice nada del motor
 ESPERA_LAZO = 20          # s tras soltar gas o pisar fuerte sin juzgar el lazo: en las grabaciones hasta el 15/11/2026
 #                           el dato del lazo (PID 0x03) se leía solo cada ~17 s y se quedaba congelado entre lectura y lectura
+ESPERA_BATERIA = 25       # s tras arrancar o parar sin juzgar la batería: el lector la lee cada ~13 s y el alternador tarda
+#                           unos segundos en cargar (20/11/2026 18:05: 12,5 V leídos al arrancar = falso «carga poco»)
+ESPERA_TRASERA = 30       # s tras soltar gas o pisar fuerte sin juzgar la sonda trasera: el catalizador se llena de oxígeno
+#                           y la sonda se queda baja un rato aunque todo esté bien (20/11/2026 17:28, ciudad)
+TEMP_MARCHA_MIN = 84      # °C: circulando por debajo, «se enfría en marcha» (el termostato viejo iba a 81; el nuevo, a 85-87)
+VIAJE_CORTO_KM = 5        # km: el consumo de un viaje más corto no dice nada del coche (aunque cuenta en el depósito)
+GPS_MIN_KMH = 35          # km/h: más despacio, la velocidad entera de la centralita (±0,5) ya baila más de un 1,5 %
+GPS_MIN_AJUSTE = 300      # momentos a velocidad estable para proponer otra corrección de velocidad
 
 
 def diagnosticar(filas, averias=None, consumo_real=None, factor_consumo=None, corr_velocidad=1.0,
                  historial_mezcla=None):
-    """historial_mezcla: viajes anteriores, del más viejo al más nuevo, como {"carpeta", "media", "min"}
-    (estadisticas.mezcla_caliente de cada resumen.json). Sirve para dar la mezcla con la media de varios viajes."""
+    """historial_mezcla: viajes anteriores, del más viejo al más nuevo, como {"carpeta", "media", "min", "km"}
+    (estadisticas.mezcla_caliente de cada resumen.json). Sirve para dar la mezcla con la media de la última hora."""
     hallazgos, stats = [], {}
 
     def h(sistema, nivel, titulo, detalle, gasto=False):
@@ -202,7 +244,6 @@ def diagnosticar(filas, averias=None, consumo_real=None, factor_consumo=None, co
             estables.update(id(x) for x in dentro)
         tramo = []
     ralenti_cal = lambda f: id(f) in estables
-    t_marcha = sum(min(b["t"] - a["t"], 5) for a, b in zip(filas, filas[1:]) if en_marcha(a))
 
     # ================= refrigeración
     temps = serie("temp_motor", en_marcha)
@@ -213,7 +254,7 @@ def diagnosticar(filas, averias=None, consumo_real=None, factor_consumo=None, co
     if len(en_carretera) > 300 and ya_caliente:
         med_carr = statistics.median(en_carretera)
         stats["temp_motor_en_marcha"] = med_carr
-        enfria_marcha = med_carr < 86
+        enfria_marcha = med_carr < TEMP_MARCHA_MIN
 
     if temps:
         stats["temp_motor"] = _est(temps)
@@ -269,10 +310,11 @@ def diagnosticar(filas, averias=None, consumo_real=None, factor_consumo=None, co
                                                              for x in hallazgos):
         med = stats["temp_motor_en_marcha"]
         if enfria_marcha:
-            h("refrigeracion", "amarillo", "Se enfría en marcha: termostato",
-              f"Parado sube a {max(temps):.0f} °C, pero circulando baja a {med:.0f} °C de media. Con el termostato bien se "
-              "mantiene cerca de 89-90 °C también en marcha. Lo típico es un termostato que se queda algo abierto "
-              "(pieza barata). Con el motor más frío gasta algo más y la calefacción calienta menos.", gasto=True)
+            h("refrigeracion", "amarillo", "Se enfría en marcha",
+              f"Parado sube a {max(temps):.0f} °C, pero circulando baja a {med:.0f} °C de media (lo normal es 85-92 °C). "
+              "Lo típico es un termostato que se queda algo abierto; si el termostato ya es nuevo, mira en frío el nivel "
+              "del vaso de expansión (puede quedar aire en el circuito). Con el motor más frío gasta algo más y la "
+              "calefacción calienta menos.", gasto=True)
         else:
             h("refrigeracion", "verde", "Mantiene la temperatura en marcha", f"{med:.0f} °C de media circulando.")
 
@@ -334,50 +376,62 @@ def diagnosticar(filas, averias=None, consumo_real=None, factor_consumo=None, co
                     and a.get("ltft") is not None and a.get("stft") is not None:
                 cal_m.append(a["ltft"] + a["stft"])
                 t_cal += min(b["t"] - a["t"], 5)
+        km_viaje = sum((a.get("velocidad") or 0) * min(b["t"] - a["t"], 5) / 3600
+                       for a, b in zip(filas, filas[1:]) if b["t"] > a["t"])
         este = None
         if cal_m:
-            este = {"media": round(statistics.fmean(cal_m), 1), "min": round(t_cal / 60, 1)}
+            este = {"media": round(statistics.fmean(cal_m), 1), "min": round(t_cal / 60, 1), "km": round(km_viaje, 1)}
             stats["mezcla_caliente"] = este
-        valido = bool(este and este["min"] >= MEZCLA_MIN_VALIDO)
-        prev = [x for x in (historial_mezcla or []) if x.get("media") is not None
-                and (x.get("min") or 0) >= MEZCLA_MIN_VALIDO]
-        viajes = (prev + [este])[-MEZCLA_VIAJES:] if valido else prev[-MEZCLA_VIAJES:]
+        cuenta = lambda x: (x.get("media") is not None and (x.get("min") or 0) >= MEZCLA_MIN_VIAJE
+                            and (x.get("km") is None or x["km"] >= MEZCLA_KM_VIAJE))
+        valido = bool(este and cuenta(este))
+        viajes = [x for x in (historial_mezcla or []) if cuenta(x)] + ([este] if valido else [])
+        # la última hora con el motor caliente: de lo más nuevo hacia atrás, cada viaje con los minutos que duró
+        usados, resto = [], MEZCLA_VENTANA
+        for x in reversed(viajes):
+            if resto <= 0:
+                break
+            usados.append((x, min(x["min"], resto)))
+            resto -= x["min"]
         firmar = lambda x: f"{'+' if x > 0 else ''}{_n(x, 1)}"
         minutos = lambda e: ("menos de 1 min" if not e or e["min"] < 1 else
-                             f"{_n(e['min'], 1)} min" if round(e["min"]) >= MEZCLA_MIN_VALIDO > e["min"] else f"{_n(e['min'], 0)} min")
-        if viajes:
-            med = statistics.fmean(x["media"] for x in viajes)
-            lo, hi = min(x["media"] for x in viajes), max(x["media"] for x in viajes)
-            stats["mezcla_media_viajes"] = {"media": round(med, 1), "viajes": len(viajes), "min": lo, "max": hi}
-            if len(viajes) == 1 and valido:
-                base = (f"En este viaje, con el motor caliente: {firmar(med)} %. Es un solo viaje: este dato va a saltos y "
-                        "cambia mucho de un día a otro, así que es orientativo hasta tener al menos "
-                        f"{MEZCLA_MIN_VIAJES} viajes de más de {MEZCLA_MIN_VALIDO} min.")
+                             f"{_n(e['min'], 0 if e['min'] >= 3 else 1)} min")
+        if usados:
+            peso = sum(w for _, w in usados)
+            med = sum(x["media"] * w for x, w in usados) / peso
+            lo, hi = min(x["media"] for x, _ in usados), max(x["media"] for x, _ in usados)
+            n_v = len(usados)
+            stats["mezcla_media_viajes"] = {"media": round(med, 1), "viajes": n_v, "min": lo, "max": hi,
+                                            "minutos": round(peso)}
+            base = (f"Media de la última hora con el motor caliente ({n_v} viaje{'s' if n_v > 1 else ''}, "
+                    f"{_n(peso, 0)} min): {firmar(med)} %" + (f" (de {firmar(lo)} a {firmar(hi)})." if n_v > 1 else "."))
+            if valido:
+                base += (f" Este viaje: {firmar(este['media'])} % en {minutos(este)}"
+                         + (" (poco rato: baila mucho)." if este["min"] < 3 else "."))
+            elif este and km_viaje < MEZCLA_KM_VIAJE:
+                base += " Esta grabación no cuenta: el coche no se movió."
             else:
-                base = (f"Media de los últimos {len(viajes)} viajes con el motor caliente: {firmar(med)} % "
-                        f"(de {firmar(lo)} a {firmar(hi)}). " if len(viajes) > 1 else
-                        f"El último viaje que sirve, con el motor caliente: {firmar(med)} %. ")
-                base += (f"Este viaje: {firmar(este['media'])} %." if valido else
-                         f"Este viaje no cuenta: solo {minutos(este)} con el motor caliente "
-                         f"(hacen falta {MEZCLA_MIN_VALIDO}).")
-                if len(viajes) < MEZCLA_MIN_VIAJES:
-                    base += f" Aún orientativo: faltan viajes hasta {MEZCLA_MIN_VIAJES}."
+                base += f" Este viaje no cuenta: {minutos(este)} con el motor caliente."
+            if peso < MEZCLA_MIN_FIABLE:
+                base += f" Aún orientativo: hacen falta al menos {MEZCLA_MIN_FIABLE} min de motor caliente."
             tot_v = med
         else:
-            # sin viajes que sirvan: el dato de este viaje, avisando de que no vale para juzgar
+            # sin ningún viaje que sirva: el dato de este, avisando de que no vale para juzgar
             tot_v = None
             if tot is not None:
-                h("gasolina", "gris", "Mezcla: viaje corto, no sirve para juzgar",
-                  f"Corrección {firmar(tot)} %, pero solo con {minutos(este)} con el motor "
-                  f"caliente (hacen falta {MEZCLA_MIN_VALIDO}). Este dato va a saltos y baila mucho en viajes cortos.")
+                h("gasolina", "gris", "Mezcla: aún sin datos para juzgar",
+                  f"Corrección {firmar(tot)} %, con {minutos(este)} con el motor caliente. Este dato va a saltos y "
+                  "baila mucho en ratos cortos: hace falta circular algo más con el motor caliente.")
         if tot_v is not None:
             if tot_v < -15:
                 h("gasolina", "rojo" if tot_v < -22 else "amarillo", "Mezcla rica: le sobra gasolina",
                   base + " El coche quita gasolina para compensar. Lo que causa esto: un inyector "
                   "que gotea, el sensor MAP o el de temperatura mintiendo, o el canister. Gasta más.", gasto=True)
             elif tot_v > 15:
+                # compensada no gasta más (la mezcla sale justa); por eso no cuenta como causa de gasto (20/11/2026)
                 h("gasolina", "rojo" if tot_v > 22 else "amarillo", "Mezcla pobre: le falta gasolina o le sobra aire",
-                  base + " El coche añade gasolina para compensar.", gasto=True)
+                  base + " El coche añade gasolina para compensar: así la mezcla sale justa y no gasta más, pero si "
+                  "sigue subiendo puede encender el testigo (avería P0171).")
             elif abs(tot_v) > 10:
                 h("gasolina", "amarillo", "La mezcla necesita bastante corrección", base + " Aceptable, pero vigílalo.")
             else:
@@ -530,30 +584,73 @@ def diagnosticar(filas, averias=None, consumo_real=None, factor_consumo=None, co
         if statistics.fmean(s1) > 0.6:
             h("escape", "amarillo", "La sonda delantera marca rico casi siempre",
               f"Media {_n(statistics.fmean(s1), 2)} V. La mezcla tiende a ir rica.", gasto=True)
-        s2 = serie("sonda2", lambda f: en_marcha(f) and lazo(f) and caliente(f) and not corte(f))
-        s2_cond = serie("sonda2", lambda f: conduciendo(f) and lazo(f) and caliente(f) and not corte(f))
-        if len(s2) > 30 and t_marcha >= 120:
-            c1, c2 = _cruces(s1) / len(s1), _cruces(s2) / len(s2)
-            stats["sonda2"] = {**_est(s2), "ratio_cruces": round(c2 / c1, 2) if c1 else None}
-            if c1 and c2 / c1 > 0.6 and max(s2) - min(s2) > 0.4:
+        # sonda trasera: solo en ratos tranquilos. Tras soltar gas (corte de inyección), pisar fuerte o volver del lazo
+        # abierto, el catalizador está lleno de oxígeno y la trasera se queda baja un rato aunque todo esté bien
+        t_ult, tranquila = None, set()
+        for f in filas:
+            if corte(f) or fuerte(f) or not lazo(f) or not en_marcha(f):
+                t_ult = f["t"]
+            elif t_ult is None or f["t"] - t_ult > ESPERA_TRASERA:
+                tranquila.add(id(f))
+        # y circulando: al ralentí largo la trasera de este coche baja a ~0,2 V sin que pase nada (07/11/2026)
+        ok2 = lambda f: id(f) in tranquila and caliente(f) and conduciendo(f) and f.get("sonda2") is not None
+        filas2 = [f for f in filas if ok2(f)]
+        t_s2 = sum(min(b["t"] - a["t"], 5) for a, b in zip(filas, filas[1:]) if ok2(a) and b["t"] > a["t"])
+        s2 = [f["sonda2"] for f in filas2]
+        s2_cond = [f["sonda2"] for f in filas2 if conduciendo(f)]
+        l1, l2 = _lecturas(filas2, "sonda1"), _lecturas(filas2, "sonda2")
+        # cada cuánto se lee la trasera: hasta el 20/11/2026 cada ~13 s (así no se ve si oscila); desde entonces ~3 s
+        todas2 = _lecturas(filas, "sonda2")
+        pasos2 = sorted(b[0] - a[0] for a, b in zip(todas2, todas2[1:]))
+        lee_rapido = bool(pasos2) and pasos2[len(pasos2) // 2] <= 5
+        # el autodiagnóstico del catalizador de la propia centralita (es lo que mira la ITV)
+        mon_cat = next((m["completo"] for m in ((averias or {}).get("monitores") or {}).get("monitores") or []
+                        if m.get("nombre") == "Catalizador"), None)
+        dtc_cat = any(re.match(r"P04[23]", a_["codigo"]) for tipo in ("guardadas", "pendientes", "permanentes")
+                      for a_ in (averias or {}).get(tipo) or [])
+        cat_ok = mon_cat is True and not dtc_cat
+        if len(l2) >= 8 and t_s2 >= 120:
+            v1, v2 = _vaivenes(l1) / (t_s2 / 60), _vaivenes(l2) / (t_s2 / 60)  # por minuto
+            ratio = v2 / v1 if v1 else None
+            stats["sonda2"] = {**_est(s2), "ratio_cruces": round(ratio, 2) if ratio is not None and lee_rapido else None,
+                               "min_tranquilo": round(t_s2 / 60, 1)}
+            if lee_rapido and t_s2 >= 180 and len(l2) >= 40 and ratio is not None and ratio > 0.2 \
+                    and max(s2) - min(s2) > 0.4:
                 h("escape", "amarillo", "Puede que el catalizador esté gastado",
-                  "La sonda trasera oscila casi como la delantera. Si sale el código P0420, es el catalizador.")
+                  "Circulando tranquilo, la sonda trasera sube y baja casi como la delantera (un catalizador bueno la "
+                  "deja quieta). Si sale el código P0420, es el catalizador.")
             elif len(s2_cond) > 30 and statistics.fmean(s2_cond) < 0.3:
                 h("escape", "amarillo", "Sonda trasera muy baja en marcha",
-                  "Posible fuga en el escape antes de la sonda o sonda trasera vieja.")
+                  "Circulando tranquilo (lejos de soltar gas) sigue por debajo de 0,3 V. Posible fuga en el escape antes "
+                  "de la sonda o sonda trasera vieja.")
             else:
                 h("escape", "verde", "El catalizador trabaja",
-                  f"La sonda trasera está estable ({_n(statistics.fmean(s2), 2)} V).")
+                  f"La sonda trasera está estable ({_n(statistics.fmean(s2), 2)} V)"
+                  + (" y la centralita ha hecho su prueba del catalizador sin avería." if cat_ok else "."))
+        elif cat_ok:
+            h("escape", "verde", "El catalizador pasa la prueba de la centralita",
+              "Su autodiagnóstico del catalizador está hecho y sin avería (es lo que mira la ITV). Para mirar además la "
+              "sonda trasera hacen falta unos minutos seguidos sin soltar gas a menudo (por ejemplo, en carretera).")
         else:
-            h("escape", "gris", "Catalizador sin revisar", "Hace falta al menos un par de minutos con el motor caliente en marcha.")
+            h("escape", "gris", "Catalizador sin revisar",
+              "Hacen falta unos minutos seguidos con el motor caliente sin soltar gas a menudo (por ejemplo, en carretera).")
     elif marcha:
         h("escape", "gris", "Sondas sin revisar", "Las sondas solo se pueden mirar con el motor caliente (lazo cerrado).")
 
     # ================= electricidad
-    t_arranque = marcha[0]["t"] if marcha else None
-    en_arranque = lambda f: (100 <= (f.get("rpm") or 0) <= 400) or (t_arranque is not None and abs(f["t"] - t_arranque) < 8)
-    bat_m = serie("bateria", lambda f: en_marcha(f) and (t_arranque is None or f["t"] - t_arranque >= 6))
-    bat_p = serie("bateria", lambda f: not en_marcha(f) and not en_arranque(f))
+    # tras cada arranque y cada parada, ESPERA_BATERIA s sin juzgar: el lector lee la batería cada ~13 s y la lectura
+    # anterior se queda en las filas; además el alternador tarda unos segundos en cargar. Y 8 s antes de cada arranque
+    # (motor de arranque). Ojo: con el contacto puesto y el motor parado esta centralita da 256 rpm, no 0.
+    arranques = [b["t"] for a, b in zip([{}] + filas, filas) if en_marcha(b) and not en_marcha(a)]
+    paradas = [b["t"] for a, b in zip(filas, filas[1:]) if en_marcha(a) and not en_marcha(b)]
+    cerca = lambda f, ts, antes, despues: any(-antes <= f["t"] - t0 < despues for t0 in ts)
+    filas_bm = [f for f in filas if f.get("bateria") is not None and en_marcha(f)
+                and not cerca(f, arranques, 0, ESPERA_BATERIA)]
+    filas_bp = [f for f in filas if f.get("bateria") is not None and not en_marcha(f)
+                and not cerca(f, arranques, 8, 0) and not cerca(f, paradas, 0, ESPERA_BATERIA)]
+    # en marcha hacen falta al menos 40 s de lecturas buenas (unas 3 lecturas del lector)
+    bat_m = [f["bateria"] for f in filas_bm] if filas_bm and filas_bm[-1]["t"] - filas_bm[0]["t"] >= 40 else []
+    bat_p = [f["bateria"] for f in filas_bp]
     if bat_m:
         m = statistics.fmean(bat_m)
         stats["bateria_en_marcha"] = _est(bat_m)
@@ -631,12 +728,14 @@ def _pendiente(tramo):
 
 
 def _gps_vs_coche(filas, corr, stats, h):
-    """Compara la velocidad de la centralita con la del GPS solo a velocidad estable (el GPS va ~1 s retrasado)."""
+    """Compara la velocidad de la centralita con la del GPS solo a velocidad estable (el GPS va ~1 s retrasado) y a más
+    de GPS_MIN_KMH. Solo propone otra corrección con GPS_MIN_AJUSTE momentos o más: un viaje corto y lento da ±2-3 %
+    sin que pase nada (20/11/2026 18:06: «pon 1,093» con 101 momentos a 12-43 km/h, y los demás viajes cuadraban)."""
     ratios = []
     for i in range(10, len(filas) - 10):
         f = filas[i]
         g, v = f.get("gps_velocidad"), f.get("velocidad")
-        if not g or not v or g < 25 or v < 20:
+        if not g or not v or g < GPS_MIN_KMH or v < GPS_MIN_KMH:
             continue
         vecinos = [filas[j].get("velocidad") for j in (i - 10, i - 5, i + 5, i + 10)]
         if any(x is None or abs(x - v) > 2 for x in vecinos):
@@ -655,7 +754,7 @@ def _gps_vs_coche(filas, corr, stats, h):
     if abs(dif) <= 2:
         h("marcha", "verde", "La velocidad cuadra con el GPS",
           f"Diferencia {_n(dif)} % en {len(ratios)} momentos a velocidad estable (corrección {_n(corr, 3)}).")
-    else:
+    elif len(ratios) >= GPS_MIN_AJUSTE:
         h("marcha", "gris", "Ajustar la corrección de velocidad",
           f"Con la corrección {_n(corr, 3)} la centralita aún marca un {_n(abs(dif))} % "
           f"{'menos' if dif > 0 else 'más'} que el GPS ({len(ratios)} momentos a velocidad estable). "
@@ -879,12 +978,22 @@ def _hallazgos_consumo(c, real, hallazgos, h):
         estilo.append(f"el {c['pct_ralenti']} % del tiempo estuvo parado al ralentí")
     if c["l100"] is not None:
         m = c["l100"]
-        nivel = "verde" if m <= 9 else "amarillo" if m <= 11 else "rojo"
-        txt = (f"{_n(m)} L/100 km de media en {_n(c['km'])} km (estimado, ±15 %). En uso real este coche suele "
-               "gastar 7,5-9 L/100 km (más en ciudad).")
-        if estilo:
-            txt += " Ojo: " + " y ".join(estilo) + ", y eso sube la media."
-        h("consumo", nivel, "Consumo de esta sesión", txt)
+        if c["km"] < VIAJE_CORTO_KM:
+            # viaje corto: el gasto por km sale alto siempre; cuenta en el total del depósito, pero no dice nada del coche
+            txt = (f"{_n(m)} L/100 km en {_n(c['km'])} km (estimado). En un viaje tan corto sale alto por el arranque, "
+                   "los semáforos y el motor aún templado: no dice nada del coche. Cuenta igual en el gasto del depósito.")
+            if estilo:
+                txt += " Además, " + " y ".join(estilo) + "."
+            h("consumo", "gris", "Consumo de este viaje corto", txt)
+        else:
+            nivel = "verde" if m <= 9 else "amarillo" if m <= 11 else "rojo"
+            if estilo and nivel == "rojo":
+                nivel = "amarillo"  # el motor frío o el rato parado ya explican la media alta
+            txt = (f"{_n(m)} L/100 km de media en {_n(c['km'])} km (estimado, ±15 %). En uso real este coche suele "
+                   "gastar 7,5-9 L/100 km (más en ciudad).")
+            if estilo:
+                txt += " Ojo: " + " y ".join(estilo) + ", y eso sube la media."
+            h("consumo", nivel, "Consumo de esta sesión", txt)
     elif c["lh_ralenti"] is not None:
         m = c["lh_ralenti"]
         if c["pct_frio"] >= 50 and m > 1.2:

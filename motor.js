@@ -10,8 +10,8 @@
  */
 (() => {
 "use strict";
-const VERSION = "712e479584";
-const PY = ["pids.py", "averias.py", "diagnostico.py", "analisis.py", "rutas.py", "servidor.py", "elm327.py", "simulador.py", "movil_py.py"];
+const VERSION = "cb51ead204";
+const PY = ["pids.py", "averias.py", "diagnostico.py", "analisis.py", "rutas.py", "deposito.py", "servidor.py", "elm327.py", "simulador.py", "movil_py.py"];
 const espera = ms => new Promise(r => setTimeout(r, ms));
 const h2 = n => n.toString(16).toUpperCase().padStart(2, "0");
 const bytesDeHex = s => { const out = []; for (let i = 0; i + 1 < s.length; i += 2) out.push(parseInt(s.slice(i, i + 2), 16)); return out; };
@@ -58,7 +58,7 @@ async function arrancar() {
   py.FS.mount(py.FS.filesystems.IDBFS, {}, "/coche");
   await new Promise((si, no) => py.FS.syncfs(true, e => e ? no(e) : si()));
   for (const f of PY) py.FS.writeFile("/coche/" + f, await (await fetch("py/" + f)).text());
-  for (const f of ["mantenimiento.json", "ajustes.json"])  // la primera vez: copia de lo que había en el Mac
+  for (const f of ["mantenimiento.json", "ajustes.json", "deposito.json"])  // la primera vez: copia vacía (los de verdad, del repositorio)
     if (!existe("/coche/" + f)) py.FS.writeFile("/coche/" + f, await (await fetch("py/" + f)).text());
   py.runPython("import sys\nif '/coche' not in sys.path: sys.path.insert(0, '/coche')");
   M = py.pyimport("movil_py");
@@ -70,7 +70,8 @@ async function arrancar() {
   setTimeout(subirPendientes, 5000);
   setInterval(subirPendientes, 120000);
   setTimeout(() => sincronizarMantenimiento(true), 7000);
-  window.addEventListener("online", () => setTimeout(() => { subirPendientes(); sincronizarMantenimiento(true); sincronizarRutas(); }, 3000));
+  setTimeout(() => sincronizarDeposito(), 9000);
+  window.addEventListener("online", () => setTimeout(() => { subirPendientes(); sincronizarMantenimiento(true); sincronizarRutas(); sincronizarDeposito(); }, 3000));
   setInterval(reconectarSolo, 15000);
   setTimeout(reconectarSolo, 1500);
   ajustarTextos();
@@ -1009,6 +1010,50 @@ async function sincronizarRutas(subir) {
   return rutasEnMarcha;
 }
 
+// ⛽ Depósito (lecturas del cuadro y repostajes): deposito.json en la raíz del repositorio, juntado a tres bandas por
+// cada anotación (id), para no perder lo apuntado desde el Mac, desde el buzón (Claude) o desde otro móvil.
+const DEP_F = "/coche/deposito.json", DEP_EST = "/coche/deposito_nube.json", DEP_BASE = "/coche/deposito_base.json";
+let depEnMarcha = null;
+function depJuntar(base, local, remoto) {
+  const mapa = d => new Map(((d && d.entradas) || []).filter(e => e && e.id).map(e => [e.id, e]));
+  const B = mapa(base), L = mapa(local), R = mapa(remoto), entradas = [];
+  for (const id of new Set([...R.keys(), ...L.keys()])) {
+    const b = B.get(id), l = L.get(id), r = R.get(id);
+    if (l && r) { entradas.push(b && mismo(l, b) ? r : l); continue; }  // en los dos: gana el que la cambió (el móvil si los dos)
+    const queda = l || r;
+    if (b && mismo(queda, b)) continue;  // estaba la última vez y un lado la ha borrado sin que el otro la tocara: fuera
+    entradas.push(queda);                // nueva en un lado
+  }
+  entradas.sort((a, b) => String(a.fecha || "").localeCompare(String(b.fecha || "")));
+  const out = { ...(remoto || {}), ...(local || {}) };
+  for (const k of Object.keys(out)) if (k !== "entradas" && base && mismo((local || {})[k], base[k]) && remoto && k in remoto) out[k] = remoto[k];
+  out.entradas = entradas;
+  return out;
+}
+async function sincronizarDeposito(subir) {
+  if (depEnMarcha) { await depEnMarcha.catch(() => {}); if (!subir) return; }
+  if (!py || !nube().token || !navigator.onLine) return;
+  depEnMarcha = (async () => {
+    try {
+      const pend = !!(subir || leerJSON(DEP_EST, {}).pendiente);
+      const local = leerJSON(DEP_F, {}), base = leerJSON(DEP_BASE, null);
+      const texto = await gh("/contents/deposito.json?ref=main", { crudo: true, vacio404: true });
+      let remoto = null; try { remoto = texto ? JSON.parse(texto) : null; } catch {}
+      const junto = depJuntar(base, local, remoto);
+      if (!mismo(junto, local)) escribirJSON(DEP_F, junto);
+      const hay = (junto.entradas || []).length || (remoto && (remoto.entradas || []).length);
+      if ((pend || hay) && !mismo(junto, remoto || {})) {
+        await commitArchivos([["deposito.json", new TextEncoder().encode(JSON.stringify(junto, null, 2) + "\n")]],
+          "Depósito: lectura o repostaje apuntado desde el móvil");
+      }
+      escribirJSON(DEP_BASE, junto);
+      escribirJSON(DEP_EST, { pendiente: false });
+      guardar();
+    } catch (e) { console.error("depósito", e); escribirJSON(DEP_EST, { pendiente: true }); }
+  })().finally(() => { depEnMarcha = null; });
+  return depEnMarcha;
+}
+
 async function bajarArchivo(carpeta, nombre) {  // p. ej. el GPX de una salida: compartir (Garmin, Drive…) o a Descargas
   await listo;
   if (!/^[\w-]+$/.test(carpeta) || !/^[\w.-]+$/.test(nombre)) return;
@@ -1080,6 +1125,8 @@ async function api(ruta, cuerpo) {
     await conTiempo(Promise.resolve(sincronizarMantenimiento()), 6000, "tarda").catch(() => {});
   if (cuerpo === undefined && ruta === "/api/rutas")  // los nombres de las rutas, por si se cambiaron desde el Mac
     await conTiempo(Promise.resolve(sincronizarRutas()), 5000, "tarda").catch(() => {});
+  if (cuerpo === undefined && ruta === "/api/deposito")  // lo apuntado desde el Mac o el buzón, antes de pintarlo
+    await conTiempo(Promise.resolve(sincronizarDeposito()), 5000, "tarda").catch(() => {});
   if (cuerpo === undefined && ruta === "/api/mantenimiento")  // la página explica por qué sale vacío (sin llave, sin internet…)
     return { ...JSON.parse(M.get(ruta)), _nube: { llave: !!nube().token, internet: navigator.onLine, error: mantError } };
   if (cuerpo === undefined) return JSON.parse(M.get(ruta));
@@ -1110,6 +1157,7 @@ async function api(ruta, cuerpo) {
       if (ruta === "/api/mantenimiento") mantenimientoTocado();
       if (ruta === "/api/ajustes" && r.ok) { mantCambios++; sincronizarMantenimiento(true); }
       if (ruta === "/api/ruta_nombre" && r.ok) { escribirJSON(RUTAS_EST, { pendiente: true }); sincronizarRutas(true); }
+      if (ruta === "/api/deposito" && r.ok) { escribirJSON(DEP_EST, { pendiente: true }); guardar(); sincronizarDeposito(true); }
       return r;
     }
   }

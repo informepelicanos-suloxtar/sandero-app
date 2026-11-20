@@ -137,6 +137,9 @@ details p{margin:6px 0}
 .cifras span{color:var(--sub);font-size:13px}
 .repostaje{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px;color:var(--sub);margin-bottom:10px}
 .repostaje input[type=text]{width:90px;padding:8px 10px}
+.dep-campo{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--sub);flex:1;min-width:150px}
+.dep-campo input{width:100%;box-sizing:border-box}
+.dep-tramo{margin:8px 0;padding:10px 12px;border-radius:12px;background:var(--panel2)}
 /* cuadro rápido en directo */
 .cuadro-vivo{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:8px;margin-bottom:12px}
 .cuadro-vivo .cv{background:var(--panel);border:1px solid var(--linea);border-left:4px solid var(--gris);border-radius:12px;padding:10px 12px;box-shadow:var(--sombra)}
@@ -593,6 +596,37 @@ label.marca{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size
         <button class="boton primario chico" onclick="anadirTarea()">+ Añadir</button>
       </div>
     </div>
+    <div class="panel" id="panelDeposito">
+      <div class="fila" style="justify-content:space-between">
+        <h2 style="margin:0">⛽ Depósito y repostajes</h2>
+        <button class="boton chico" onclick="abrirFormDeposito()">+ Apuntar</button>
+      </div>
+      <p class="mensaje-con" style="margin-top:6px">Apunta lo que ves en el cuadro: los <b>litros que quedan</b> (menú
+        oculto: con el contacto quitado, deja pulsado el botón del reloj y da el contacto; mejor con el coche en llano)
+        y los <b>km totales</b>. Al repostar, los <b>litros que entran</b> y si llenas hasta el primer salto. Con eso sale
+        lo que gasta de verdad, contando todas las salidas, cortas y largas, y se ajusta el cálculo de la app.</p>
+      <div id="formDeposito" hidden style="margin:10px 0;padding:12px;border-radius:12px;background:var(--panel2)">
+        <div class="fila" style="margin-bottom:8px">
+          <label class="dep-campo">Fecha y hora<input type="datetime-local" id="depFecha"></label>
+          <label class="dep-campo">Km totales del cuadro<input type="text" inputmode="decimal" id="depKm" placeholder="p. ej. 212.480"></label>
+          <label class="dep-campo">Km del parcial (si lo usas)<input type="text" inputmode="decimal" id="depParcial" placeholder="p. ej. 452,3"></label>
+        </div>
+        <div class="fila" style="margin-bottom:8px">
+          <label class="dep-campo">Litros que marca el cuadro<input type="text" inputmode="decimal" id="depLitros" placeholder="p. ej. 6"></label>
+          <label class="dep-campo">Litros echados (si repostas)<input type="text" inputmode="decimal" id="depEchados" placeholder="p. ej. 41,35"></label>
+          <label style="font-size:14px;display:flex;align-items:center;gap:6px;color:var(--sub);flex:1;min-width:150px"><input type="checkbox" id="depLleno"> Lleno hasta el primer salto</label>
+        </div>
+        <input type="text" id="depNota" placeholder="Nota (opcional): se encendió la reserva, gasolinera…">
+        <div class="mensaje-con" style="margin:6px 0 0">Si en la misma parada miras el cuadro y luego repostas, pon los
+          litros que marcaba <b>antes</b> de echar.</div>
+        <div class="fila" style="justify-content:flex-end;margin-top:8px">
+          <button class="boton chico" onclick="$('formDeposito').hidden=true">Cancelar</button>
+          <button class="boton primario chico" onclick="guardarDeposito()">Guardar</button>
+        </div>
+      </div>
+      <div id="depTramos"></div>
+      <div id="depEntradas" class="vacio">Cargando…</div>
+    </div>
     <div class="panel">
       <div class="fila" style="justify-content:space-between">
         <h2 style="margin:0">Historial del coche</h2>
@@ -1007,14 +1041,9 @@ function hacerTarjetas(){
         <input type="text" inputmode="decimal" id="consumoReal" placeholder="p. ej. 9,5"> L/100 km
         <button class="boton" onclick="guardarConsumo()">Guardar</button>
         <span>(sirve para comparar con lo que ve el coche)</span></div>
-      <details style="margin-bottom:8px"><summary>🧮 Calcular desde un repostaje (litros y km)</summary>
-        <div class="repostaje" style="margin-top:8px">
-          Litros echados: <input type="text" inputmode="decimal" id="repLitros" placeholder="p. ej. 38,5" oninput="calcularRepostaje()">
-          · Km recorridos: <input type="text" inputmode="decimal" id="repKm" placeholder="p. ej. 410" oninput="calcularRepostaje()">
-          <b id="repPreview" style="color:var(--txt)"></b>
-          <button class="boton primario chico" id="btnAplicarRep" onclick="aplicarRepostaje()" disabled>Aplicar y guardar</button>
-        </div>
-      </details>
+      <div class="mensaje-con" style="margin:0 0 8px">⛽ Los repostajes y lo que marca el cuadro se apuntan en
+        <a href="#" onclick="mostrarPestana('mantenimiento');setTimeout(()=>$('panelDeposito')?.scrollIntoView({behavior:'smooth'}),300);return false">Mantenimiento → Depósito</a>:
+        la app saca sola lo que gasta de verdad y te propone ajustar el cálculo.</div>
       <details style="margin-bottom:10px"><summary>Ajustes de calibración (factor de consumo y voltímetro)</summary>
         <div class="repostaje" style="margin-top:8px">
           Factor de cálculo de gasolina: <input type="text" inputmode="decimal" id="factorConsumo" placeholder="1,0">
@@ -1207,28 +1236,6 @@ async function guardarConsumo(){
   if (r.ok) { ajustesActuales = r.dato; sesionesVistas = ""; cargarSesiones(); }
   tostada(r.ok ? "Guardado. Lo comparo con lo que calcula el coche." : r.error);
 }
-function calcularRepostaje(){
-  const lit = parseFloat(($("repLitros")?.value || "").replace(",", "."));
-  const km = parseFloat(($("repKm")?.value || "").replace(",", "."));
-  const prev = $("repPreview"), btn = $("btnAplicarRep");
-  if (!prev || !btn) return null;
-  if (lit > 0 && km > 1) {
-    const l100 = Math.round(lit / km * 1000) / 10;
-    prev.textContent = `= ${String(l100).replace(".", ",")} L/100 km`;
-    btn.disabled = false;
-    return l100;
-  }
-  prev.textContent = "";
-  btn.disabled = true;
-  return null;
-}
-async function aplicarRepostaje(){
-  const l100 = calcularRepostaje();
-  if (l100 == null) return;
-  $("consumoReal").value = String(l100).replace(".", ",");
-  await guardarConsumo();
-  $("repLitros").value = ""; $("repKm").value = ""; calcularRepostaje();
-}
 async function guardarCalibracion(){
   const r = await api("/api/ajustes", {
     factor_consumo: $("factorConsumo")?.value.trim(),
@@ -1400,19 +1407,19 @@ function pintarAcumulado(lista){
   const p = $("panelAcumulado");
   if (!p) return;
   const reales = lista.filter(s => !(s.lector || "").includes("Simulador") && s.resumen);
-  let km = 0, litros = 0, min = 0, ltSum = 0, ltN = 0, tCarr = [];
+  let km = 0, litros = 0, min = 0, tCarr = [];
   for (const s of reales) {
     const c = s.resumen?.consumo || {}, est = s.resumen?.estadisticas || {};
     km += c.km || 0;
     litros += c.litros || 0;
     min += c.min_motor || est.duracion_min || 0;
-    if (est.ltft?.media != null && est.ltft?.n) { ltSum += est.ltft.media * est.ltft.n; ltN += est.ltft.n; }
     if (est.temp_motor_en_marcha != null) tCarr.push(est.temp_motor_en_marcha);
   }
   if (!reales.length || min < 1) { p.hidden = true; return; }
   p.hidden = false;
   const l100 = km >= 2 ? Math.round(litros / km * 1000) / 10 : null;
-  const ltMed = ltN ? Math.round(ltSum / ltN * 10) / 10 : null;
+  // la mezcla de la última hora con el motor caliente (todas las salidas, cortas y largas), de la grabación más nueva
+  const mezHora = reales.map(s => s.resumen?.estadisticas?.mezcla_media_viajes?.media).find(x => x != null) ?? null;
   const tMed = tCarr.length ? Math.round(tCarr.reduce((a,b)=>a+b,0)/tCarr.length) : null;
   const realRep = ajustesActuales.consumo_real;
   const facActual = ajustesActuales.factor_consumo || 1;
@@ -1429,8 +1436,8 @@ function pintarAcumulado(lista){
     [reales.length, "grabaciones reales"],
     [String(Math.round(km*10)/10).replace(".",",") + " km", "recorridos en total"],
     [Math.round(min) + " min", "motor en marcha"],
-    [l100 != null ? String(l100).replace(".",",") + " L/100" : String(Math.round(litros*100)/100).replace(".",",") + " L", l100 != null ? "consumo medio real" : "gasolina estimada"],
-    [ltMed != null ? (ltMed > 0 ? "+" : "") + String(ltMed).replace(".",",") + " %" : "–", "LTFT medio"],
+    [l100 != null ? String(l100).replace(".",",") + " L/100" : String(Math.round(litros*100)/100).replace(".",",") + " L", l100 != null ? "consumo medio calculado" : "gasolina estimada"],
+    [mezHora != null ? (mezHora > 0 ? "+" : "") + String(mezHora).replace(".",",") + " %" : "–", "mezcla, última hora"],
     [tMed != null ? tMed + " °C" : "–", "temp. en carretera"],
   ];
   p.innerHTML = `<h2 style="margin-bottom:8px">Resumen acumulado de tu Sandero</h2>
@@ -2116,6 +2123,68 @@ function abrirFormHistorialCon(tarea){
 }
 async function cargarMantenimiento(){
   pintarMantenimiento(await api("/api/mantenimiento"));
+  cargarDeposito();
+}
+
+// ------------------------------------------------------------------ ⛽ DEPÓSITO: lecturas del cuadro y repostajes
+async function cargarDeposito(){
+  try { pintarDeposito(await api("/api/deposito")); } catch (e) { console.error(e); }
+}
+function abrirFormDeposito(){
+  const f = $("formDeposito");
+  f.hidden = !f.hidden;
+  if (f.hidden) return;
+  const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  $("depFecha").value = d.toISOString().slice(0, 16);
+  f.scrollIntoView({behavior: "smooth", block: "center"});
+}
+async function guardarDeposito(){
+  const nueva = {fecha: $("depFecha").value, km: $("depKm").value.trim(), km_parcial: $("depParcial").value.trim(),
+    litros_deposito: $("depLitros").value.trim(), litros_echados: $("depEchados").value.trim(),
+    lleno: $("depLleno").checked, nota: $("depNota").value.trim()};
+  const r = await api("/api/deposito", {nueva});
+  if (!r.ok) return tostada(r.error || "No se pudo guardar");
+  for (const id of ["depKm", "depParcial", "depLitros", "depEchados", "depNota"]) $(id).value = "";
+  $("depLleno").checked = false; $("formDeposito").hidden = true;
+  pintarDeposito(r.dato);
+  tostada("Apuntado ✓");
+}
+async function borrarDeposito(id){
+  if (!confirm("¿Borrar esta anotación del depósito?")) return;
+  const r = await api("/api/deposito", {borrar: id});
+  if (r.ok) { pintarDeposito(r.dato); tostada("Borrada"); } else tostada(r.error || "No se pudo borrar");
+}
+async function ajustarDesdeDeposito(f){
+  if (window.MOTOR && !confirm("Se vuelven a calcular todas las grabaciones del móvil y se suben otra vez (mejor con wifi). ¿Seguir?")) return;
+  await calibrarFactor(f);
+  cargarDeposito();
+}
+function pintarDeposito(d){
+  const ent = $("depEntradas"), trs = $("depTramos");
+  if (!ent || !trs || !d || d.error) return;
+  const num = (x, dec = 1) => x == null ? "" : Number(x).toLocaleString("es-ES", {maximumFractionDigits: dec});
+  const fecha = s => s ? new Date(s).toLocaleString("es-ES", {weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"}) : "";
+  trs.innerHTML = (d.tramos || []).map(t => {
+    const a = t.app || {};
+    const comp = a.l100 != null
+      ? `La app calculó <b>${num(a.l100)} L/100</b> con el ${Math.round((a.cobertura || 0) * 100)} % de esos km grabados${a.cobertura < 0.6 ? " (pocos para compararlo bien)" : ""}.`
+      : a.viejas ? `Para compararlo con la app, pulsa ↻ Recalcular en Grabaciones (${a.viejas} grabaciones están con el cálculo viejo).`
+      : "No hay grabaciones de esas fechas para compararlo con la app.";
+    const boton = t.factor_sugerido ? `<div style="margin-top:6px"><button class="boton chico primario" onclick="ajustarDesdeDeposito(${t.factor_sugerido})">Ajustar el cálculo de la app a esto (×${num(t.factor_sugerido, 2)}; ahora ×${num(d.factor_actual, 2)})</button></div>` : "";
+    return `<div class="dep-tramo"><b style="font-size:17px">${num(t.l100)} L/100 km</b> de verdad · ${num(t.km, 0)} km y ${num(t.litros, 2)} L
+      <br><small style="color:var(--sub)">${esc(t.como)}: ${t.desde ? esc(fecha(t.desde)) : "desde el lleno anterior"} → ${esc(fecha(t.hasta))}${t.km_de === "centralita" ? " · km del contador de la centralita (×1,09)" : t.km_de === "parcial" ? " · km del parcial" : ""}</small>
+      <br><small>${comp}</small>${boton}</div>`;
+  }).join("");
+  ent.className = "";
+  ent.innerHTML = (d.entradas || []).length ? (d.entradas || []).map(e => `
+    <div class="sesion">
+      <div class="cab"><b>${esc(fecha(e.fecha))}</b>${e.km != null ? `<span>${num(e.km, 0)} km</span>` : ""}${e.km_parcial != null ? `<span>parcial ${num(e.km_parcial)} km</span>` : ""}
+        <button class="boton chico" style="margin-left:auto;padding:3px 7px;background:transparent;color:var(--sub)" title="Borrar" onclick="borrarDeposito(${JSON.stringify(e.id).replace(/"/g, "&quot;")})">✕</button></div>
+      <div style="margin-top:4px">${[
+        e.litros_deposito != null ? `El cuadro marcaba <b>${num(e.litros_deposito)} L</b>` : "",
+        e.litros_echados != null ? `Echados <b>${num(e.litros_echados, 2)} L</b>${e.lleno ? " (lleno)" : ""}` : "",
+        e.nota ? esc(e.nota) : ""].filter(Boolean).join(" · ")}</div>
+    </div>`).join("") : `<div class="vacio">Aún no hay nada apuntado. Cuando se encienda la reserva, mira el cuadro y apúntalo aquí.</div>`;
 }
 async function marcarMantenimiento(indice, hecho){
   const tarea = mantCache?.pendientes_itv_dic2026?.[indice]?.tarea;

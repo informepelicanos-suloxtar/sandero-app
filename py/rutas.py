@@ -312,10 +312,8 @@ def por_que(v, ref):
           "marchas")
     if fv["acelerones"] - fr["acelerones"] >= 3:
         m(None, f"Más acelerones: {fv['acelerones']} pisando a fondo, frente a {fr['acelerones']} la mejor vez.", "acelerones")
-    if v.get("correccion_mezcla") is not None and ref.get("correccion_mezcla") is not None \
-            and v["correccion_mezcla"] - ref["correccion_mezcla"] >= 4:
-        m(None, f"El coche corrigió más la mezcla: {_firmado(v['correccion_mezcla'])} % de gasolina, frente a "
-                f"{_firmado(ref['correccion_mezcla'])} % la mejor vez.", "mezcla")
+    # la corrección de la mezcla ya no sale aquí: desde el 20/11/2026 el consumo no la suma (con la sonda mandando,
+    # la gasolina es la que pide el aire), así que no explica por qué un viaje gastó más que otro
     if fv.get("temp_aire") is not None and fr.get("temp_aire") is not None and fr["temp_aire"] - fv["temp_aire"] >= 6:
         m(None, f"Hacía más fresco al salir: aire a {fv['temp_aire']} °C, frente a {fr['temp_aire']} °C la mejor vez "
                 f"(tarda más en calentar).", "aire")

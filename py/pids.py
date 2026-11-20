@@ -124,16 +124,18 @@ BATERIA = ("bateria", "Batería", "V", 1,
 # Qué se lee en cada vuelta. El K7M (KWP2000) es lento: ~5-8 lecturas por segundo.
 # La sonda delantera (0x14) va 3 veces por vuelta: oscila ~1 vez por segundo y si no se lee a menudo no se ve.
 # El lazo (0x03) va también en cada vuelta: leído cada ~17 s se quedaba congelado y daba falsas alarmas de «sin sonda».
-RAPIDOS = [0x0C, 0x14, 0x0B, 0x0D, 0x14, 0x06, 0x11, 0x14, 0x0E, 0x04, 0x03]
-LENTOS = [0x05, 0x0F, 0x07, 0x15, 0x42, 0x2F, 0x46, 0x44, 0x45, 0x10, 0x33]
+# La sonda trasera (0x15) va en cada vuelta desde el 20/11/2026: leída cada ~13 s no se podía ver si el catalizador
+# trabaja (la vuelta pasa de 11 a 12 lecturas, ~2,6 s).
+RAPIDOS = [0x0C, 0x14, 0x0B, 0x0D, 0x14, 0x06, 0x11, 0x14, 0x0E, 0x04, 0x03, 0x15]
+LENTOS = [0x05, 0x0F, 0x07, 0x42, 0x2F, 0x46, 0x44, 0x45, 0x10, 0x33]
 MUY_LENTOS = [0x1F, 0x21, 0x30, 0x31, 0x4D, 0x4E]
 
 
 # Calculados (no los da el coche): ver diagnostico.consumo_lh
 DERIVADOS = {
     "consumo_lh": ("Gasto ahora (por hora)", "L/h", 1,
-                   "Litros por hora que está gastando ahora, calculado con el aire que entra y las correcciones de mezcla "
-                   "(tu motor no tiene caudalímetro ni da el dato directamente). Margen ±15 %.",
+                   "Litros por hora que está gastando ahora, calculado con el aire que entra (tu motor no tiene "
+                   "caudalímetro ni da el dato directamente). Margen ±15 %: se ajusta con tus repostajes.",
                    "Al ralentí en caliente: 0,7-1,1 L/h. Soltando gas en marcha: 0 (corte de inyección)."),
     "consumo_l100": ("Gasto ahora (por distancia)", "L/100 km", 1,
                      "Lo que gastaría en 100 km si fueras siempre así. Varía muchísimo segundo a segundo: lo que importa es "
@@ -247,8 +249,8 @@ def evaluar(clave, v, ctx, historial):
             return "gris", "Calentando…"
         if v < 80:
             return "gris", "Casi caliente"
-        if v < 86:
-            return "amarillo", "Algo frío: lo normal es 88-92 °C. Si en marcha se queda aquí, es el termostato"
+        if v < 84:
+            return "amarillo", "Algo frío: en marcha lo normal es 85-92 °C"
         if v <= 104:
             return "verde", "Temperatura correcta"
         if v <= 110:
@@ -311,11 +313,19 @@ def evaluar(clave, v, ctx, historial):
         amplitud = max(serie2) - min(serie2)
         if c2 >= 3 and amplitud > 0.4 and c1 > 0 and c2 / len(serie2) >= 0.6 * c1 / max(len(serie1), 1):
             return "amarillo", "Oscila casi como la delantera: el catalizador puede estar gastado"
+        ahora = max((t for t, _ in historial.get("map", [])), default=0)
+        solto_gas = any(x < 27 for t, x in historial.get("map", []) if t > ahora - 40)
+        if v < 0.3 and lazo_cerrado and not ralenti and solto_gas:
+            return "gris", "Baja porque acabas de soltar gas (normal: el catalizador se llena de oxígeno)"
         if v < 0.3 and lazo_cerrado and not ralenti:
             return "amarillo", "Muy baja tras el catalizador (posible fuga en el escape o mezcla pobre)"
         return "verde", "Estable: el catalizador trabaja"
 
     if clave == "bateria":
+        ahora = max((t for t, _ in historial.get("rpm", [])), default=0)
+        recien = any(x <= 400 for t, x in historial.get("rpm", []) if t > ahora - 25)
+        if en_marcha and recien and v < 13.5:
+            return "gris", "Recién arrancado: el alternador tarda unos segundos en cargar"
         if en_marcha:
             if v > 15.0:
                 return "rojo", "Demasiado voltaje: regulador del alternador"

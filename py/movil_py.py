@@ -16,6 +16,7 @@ from datetime import datetime
 
 import analisis
 import averias
+import deposito
 import diagnostico
 import pids
 import rutas
@@ -204,6 +205,8 @@ def get(ruta):
         return _j(servidor.lista_sesiones())
     if ruta == "/api/mantenimiento":
         return _j(servidor.leer_mantenimiento())
+    if ruta == "/api/deposito":
+        return _j(servidor.ver_deposito())
     if ruta == "/api/rutas":
         return _j(rutas.lista(servidor.REGISTROS, servidor.BASE))
     if ruta.startswith("/api/ruta/"):
@@ -229,6 +232,9 @@ def post(ruta, cuerpo_json):
         return _j({"ok": ok, "dato" if ok else "error": dato})
     if ruta == "/api/mantenimiento":
         return _j({"ok": True, "dato": servidor.marcar_mantenimiento(cuerpo)})
+    if ruta == "/api/deposito":
+        ok, dato = servidor.cambiar_deposito(cuerpo)
+        return _j({"ok": ok, "dato" if ok else "error": dato})
     if ruta == "/api/borrar_sesion":
         ok = servidor.borrar_sesion(cuerpo.get("carpeta"))
         return _j({"ok": ok, "error": None if ok else "No se puede borrar la grabación en marcha"})

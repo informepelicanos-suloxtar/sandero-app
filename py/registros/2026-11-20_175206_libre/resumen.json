@@ -1,0 +1,88 @@
+{
+  "carpeta": "2026-11-20_175206_libre",
+  "prueba": {
+    "tipo": "libre",
+    "nombre": "Grabación libre"
+  },
+  "inicio": "2026-11-20T17:52:06",
+  "filas": 89,
+  "notas": [],
+  "hallazgos": [
+    {
+      "sistema": "encendido",
+      "nivel": "amarillo",
+      "titulo": "Avería pendiente P0505",
+      "detalle": "Control del ralentí: fallo. En el K7M es muy típico: motor paso a paso de ralentí sucio o averiado. Limpiar mariposa y motor de ralentí.",
+      "gasto": false
+    },
+    {
+      "sistema": "averias",
+      "nivel": "amarillo",
+      "titulo": "Autodiagnósticos sin terminar",
+      "detalle": "Aún no ha comprobado: Catalizador. Normal tras borrar averías; se completan conduciendo unos días (ciudad y carretera). Para la ITV conviene tenerlos hechos.",
+      "gasto": false
+    },
+    {
+      "sistema": "electricidad",
+      "nivel": "verde",
+      "titulo": "El alternador carga bien",
+      "detalle": "14,0 V de media con el motor en marcha.",
+      "gasto": false
+    },
+    {
+      "sistema": "refrigeracion",
+      "nivel": "gris",
+      "titulo": "Calentando",
+      "detalle": "Aún no ha llegado a 80 °C; sigo mirando cuánto tarda.",
+      "gasto": false
+    },
+    {
+      "sistema": "encendido",
+      "nivel": "gris",
+      "titulo": "Ralentí en caliente sin revisar",
+      "detalle": "Hace falta un rato con el motor caliente y el coche parado.",
+      "gasto": false
+    },
+    {
+      "sistema": "aire",
+      "nivel": "gris",
+      "titulo": "Filtro de aire sin revisar",
+      "detalle": "Para comprobarlo hace falta pisar a fondo unos segundos por encima de 2.000 rpm (en una cuesta o incorporación, con seguridad).",
+      "gasto": false
+    },
+    {
+      "sistema": "escape",
+      "nivel": "gris",
+      "titulo": "Sondas sin revisar",
+      "detalle": "Las sondas solo se pueden mirar con el motor caliente (lazo cerrado).",
+      "gasto": false
+    }
+  ],
+  "estadisticas": {
+    "duracion_min": 0.1,
+    "filas_por_s": 13.86,
+    "temp_motor": {
+      "media": 19.36,
+      "min": 19.0,
+      "max": 21.0,
+      "desv": 0.77,
+      "n": 78
+    },
+    "bateria_en_marcha": {
+      "media": 14.0,
+      "min": 14.0,
+      "max": 14.0,
+      "desv": 0.0,
+      "n": 7
+    }
+  },
+  "consumo": null,
+  "sistemas": {
+    "encendido": "amarillo",
+    "averias": "amarillo",
+    "electricidad": "verde",
+    "refrigeracion": "gris",
+    "aire": "gris",
+    "escape": "gris"
+  }
+}

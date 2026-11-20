@@ -11,7 +11,7 @@
 (() => {
 "use strict";
 const VERSION = "cb414eb669";
-const PY = ["pids.py", "averias.py", "diagnostico.py", "analisis.py", "rutas.py", "servidor.py", "elm327.py", "simulador.py", "movil_py.py"];
+const PY = ["pids.py", "averias.py", "diagnostico.py", "analisis.py", "rutas.py", "servidor.py", "elm327.py", "simulador.py", "coherencia.py", "movil_py.py"];
 const espera = ms => new Promise(r => setTimeout(r, ms));
 const h2 = n => n.toString(16).toUpperCase().padStart(2, "0");
 const bytesDeHex = s => { const out = []; for (let i = 0; i + 1 < s.length; i += 2) out.push(parseInt(s.slice(i, i + 2), 16)); return out; };
@@ -494,14 +494,15 @@ async function unaVuelta() {
   if (Date.now() - Lec.ultimaOk > 8000) return cocheCallado(elm);
   const s = elm.soportados, L = Lec.listas, ciclo = Lec.ciclo++;
   const lista = L.rapidos.filter(p => s.has(p));
-  if (ciclo % 5 === 0) lista.push(...L.lentos.filter(p => s.has(p)));
+  const captura = M.capturando();  // chequeo de coherencia: todos los PIDs en cada vuelta
+  if (ciclo % 5 === 0 || captura) lista.push(...L.lentos.filter(p => s.has(p)));
   if (ciclo % 60 === 0) lista.push(...L.muy_lentos.filter(p => s.has(p)));
   for (const pid of lista) {
     if (Lec.elm !== elm) return;
     const datos = await enCola(() => elm.leerPid(pid));
     if (M.leido(pid, JSON.stringify(datos || []))) Lec.ultimaOk = Date.now();
   }
-  if (ciclo % 5 === 0) {
+  if (ciclo % 5 === 0 || captura) {
     const v = await enCola(() => elm.bateria());
     if (v != null) M.bateria(v.toFixed(2));  // el lector marca algo menos que el polímetro: corrección en ajustes.json
   }
@@ -905,6 +906,12 @@ async function api(ruta, cuerpo) {
     case "/api/conectar": Lec.auto = true; return conectar(cuerpo.destino || "ble");
     case "/api/desconectar": Lec.auto = false; await soltar("Desconectado"); return { ok: true, dato: true };
     case "/api/averias": return leerAverias();
+    case "/api/vin": {
+      if (!Lec.elm) return { ok: false, error: "Primero conecta con el coche" };
+      const elm = Lec.elm, vin = await enCola(() => elm.vin());
+      elm.info.vin = vin; M.vin_leido(vin || "");
+      return { ok: true, dato: vin };
+    }
     case "/api/borrar": return cuerpo.confirmo === true ? borrarAverias() : { ok: false, error: "Falta confirmar" };
     case "/api/empezar":
       if (!Lec.elm) return { ok: false, error: "Primero conecta con el coche" };

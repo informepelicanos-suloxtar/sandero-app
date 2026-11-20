@@ -16,6 +16,7 @@ from datetime import datetime
 
 import analisis
 import averias
+import coherencia
 import diagnostico
 import pids
 import rutas
@@ -150,6 +151,16 @@ def rpm():
     return L.valores.get("rpm") or 0
 
 
+def capturando():
+    """Chequeo de coherencia en marcha: motor.js lee todos los PIDs en cada vuelta."""
+    return coherencia.capturando()
+
+
+def vin_leido(vin):
+    if L.elm:
+        L.elm.info["vin"] = vin or None
+
+
 def accion(nombre, args_json):
     """Órdenes de la web que no necesitan hablar con el lector: empezar, parar, nota."""
     try:
@@ -187,6 +198,11 @@ def get(ruta):
         return _j(servidor.leer_mantenimiento())
     if ruta == "/api/rutas":
         return _j(rutas.lista(servidor.REGISTROS, servidor.BASE))
+    if ruta == "/api/chequeos":
+        return _j(coherencia.lista())
+    if ruta.startswith("/api/chequeo/"):
+        d = coherencia.detalle(ruta.split("/api/chequeo/", 1)[1])
+        return _j(d if d else {"error": "No existe"})
     if ruta.startswith("/api/ruta/"):
         d = rutas.detalle(servidor.REGISTROS, ruta.split("/api/ruta/", 1)[1])
         return _j(d if d else {"error": "No existe"})
@@ -198,6 +214,8 @@ def get(ruta):
 
 def post(ruta, cuerpo_json):
     cuerpo = json.loads(cuerpo_json or "{}")
+    if ruta == "/api/chequeo":
+        return _j(coherencia.accion(L, cuerpo))
     if ruta == "/api/gps":
         args = [cuerpo.get(k) for k in ("v", "precision", "lat", "lon", "alt", "precision_alt")]
         g = servidor.gps_valores(*args)

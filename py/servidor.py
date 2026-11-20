@@ -25,6 +25,7 @@ from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 import analisis
+import coherencia
 import diagnostico
 import pids
 import rutas
@@ -328,6 +329,12 @@ class Lector(threading.Thread):
             self.grabacion.guardar_sesion()
         return res
 
+    def _leer_vin(self):
+        if not self.elm:
+            raise ErrorLector("Primero conecta con el coche")
+        self.elm.info["vin"] = self.elm.vin()
+        return self.elm.info["vin"]
+
     def _borrar_averias(self):
         if not self.elm:
             raise ErrorLector("Primero conecta con el coche")
@@ -380,7 +387,8 @@ class Lector(threading.Thread):
         if time.time() - getattr(self, "ultima_ok", time.time()) > 8:
             return self._coche_callado()
         lista = [p for p in pids.RAPIDOS if p in self.elm.soportados]
-        if ciclo % 5 == 0:
+        captura = coherencia.capturando()  # chequeo de coherencia: todos los PIDs en cada vuelta
+        if ciclo % 5 == 0 or captura:
             lista += [p for p in pids.LENTOS if p in self.elm.soportados]
         if ciclo % 60 == 0:
             lista += [p for p in pids.MUY_LENTOS if p in self.elm.soportados]
@@ -392,7 +400,7 @@ class Lector(threading.Thread):
                 self.ultima_ok = time.time()
             self._apuntar(pids.DEFINICIONES[pid][0], v)
             self._fila()
-        if ciclo % 5 == 0:
+        if ciclo % 5 == 0 or captura:
             v = self.elm.bateria()
             # el lector marca algo menos que el polímetro: corrección medida (ajustes.json)
             self._apuntar("bateria", round(v + self._corr_bateria(), 2) if v is not None else None)
@@ -804,6 +812,12 @@ class Manejador(BaseHTTPRequestHandler):
             return self._json(leer_claude())
         if ruta == "/api/rutas":
             return self._json(rutas.lista(REGISTROS, BASE))
+        if ruta == "/api/chequeos":
+            return self._json(coherencia.lista())
+        m_ch = re.fullmatch(r"/api/chequeo/([\w\-]+)", ruta)
+        if m_ch:
+            d = coherencia.detalle(m_ch.group(1))
+            return self._json(d if d else {"error": "No existe"}, 200 if d else 404)
         m_ruta = re.fullmatch(r"/api/ruta/([\w\-]+)", ruta)
         if m_ruta:
             d = rutas.detalle(REGISTROS, unquote(m_ruta.group(1)))
@@ -865,10 +879,14 @@ class Manejador(BaseHTTPRequestHandler):
             "/api/conectar": ("conectar", {"destino": cuerpo.get("destino", "")}),
             "/api/desconectar": ("desconectar", {}),
             "/api/averias": ("leer_averias", {}),
+            "/api/vin": ("leer_vin", {}),
             "/api/empezar": ("empezar", {"prueba": cuerpo.get("prueba", "libre")}),
             "/api/parar": ("parar", {}),
             "/api/nota": ("nota", {"texto": str(cuerpo.get("texto", ""))[:300] or "Marca"}),
         }
+        if ruta == "/api/chequeo":
+            r = coherencia.accion(LECTOR, cuerpo)
+            return self._json(r, 200 if r["ok"] else 400)
         if ruta == "/api/gps":
             g = gps_valores(cuerpo.get("v"), cuerpo.get("precision"), cuerpo.get("lat"), cuerpo.get("lon"),
                             cuerpo.get("alt"), cuerpo.get("precision_alt"))

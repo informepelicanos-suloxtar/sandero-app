@@ -72,6 +72,19 @@ nav button.activo{background:var(--panel);color:var(--txt);box-shadow:var(--somb
 nav .cuenta{display:inline-block;min-width:20px;padding:0 6px;border-radius:999px;background:var(--rojo);color:#fff;font-size:12px;margin-left:4px}
 .pestana{display:none}.pestana.activa{display:block}
 /* pestaña Claude */
+.chq-form{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+.chq-form label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--sub);font-weight:600;min-width:0}
+.chq-form label.ancho{grid-column:1/-1}
+.chq-form input,.chq-form select{color:var(--txt);font-weight:400}
+.chq-form input[type=password]{font:inherit;width:100%;padding:11px 12px;border-radius:10px;border:1px solid var(--linea);background:var(--panel2);color:var(--txt)}
+.chq-vivo{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.chq-vivo div{flex:1;min-width:110px;padding:10px 12px;border-radius:12px;background:var(--panel2);border-left:4px solid var(--gris)}
+.chq-vivo div.verde{border-left-color:var(--verde)}.chq-vivo div.amarillo{border-left-color:var(--amarillo)}.chq-vivo div.rojo{border-left-color:var(--rojo)}
+.chq-vivo small{display:block;color:var(--sub);font-size:12px;font-weight:600}
+.chq-vivo b{font-size:24px;font-variant-numeric:tabular-nums}
+.chq-cuenta{font-size:44px;font-weight:700;text-align:center;font-variant-numeric:tabular-nums;margin:6px 0}
+.chq-na{color:var(--sub);font-style:italic}
+.chq-delta.sube{color:var(--rojo)}.chq-delta.baja{color:var(--verde)}
 .md{line-height:1.55}
 .md h2{font-size:19px;margin:22px 0 6px;padding-top:14px;border-top:1px solid var(--linea)}
 .md h2:first-child{margin-top:0;padding-top:0;border-top:0}
@@ -333,6 +346,7 @@ label.marca{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size
     <button data-p="directo" class="activo">En directo</button>
     <button data-p="averias">Averías <span class="cuenta" id="cuentaAv" hidden>0</span></button>
     <button data-p="pruebas">Pruebas</button>
+    <button data-p="chequeo">🔧 Chequeo</button>
     <button data-p="historial">Grabaciones</button>
     <button data-p="rutas">🗺️ Rutas</button>
     <button data-p="mantenimiento">Mantenimiento</button>
@@ -465,6 +479,59 @@ label.marca{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size
       <div id="listaRutas" class="vacio">Cargando…</div>
     </div>
     <div class="panel" id="panelRuta" hidden></div>
+  </section>
+
+  <!-- CHEQUEO DE COHERENCIA -->
+  <section class="pestana" id="p-chequeo">
+    <div class="panel">
+      <h2 style="margin:0 0 4px">Chequeo de coherencia y prediagnóstico</h2>
+      <p class="mensaje-con" style="margin-top:0">Para cualquier coche con OBD-II. Dos capturas de 5 s con el motor caliente
+        (ralentí y 2.500 rpm en vacío) y cruce de sensores, haya o no averías guardadas.</p>
+      <h3>Vehículo</h3>
+      <div class="chq-form">
+        <label class="ancho">VIN <span class="mensaje-con" id="chqVinInfo" style="margin:0"></span>
+          <div class="fila" style="flex-wrap:nowrap"><input type="text" id="chqVin" maxlength="17" placeholder="Se lee solo del coche (09 02) si lo da" autocapitalize="characters" spellcheck="false">
+          <button class="boton chico" onclick="chqLeerVin()">Leer</button></div></label>
+        <label>Marca<input type="text" id="chqMarca" placeholder="Dacia"></label>
+        <label>Modelo<input type="text" id="chqModelo" placeholder="Sandero Stepway"></label>
+        <label>Año<input type="text" id="chqAnio" inputmode="numeric" maxlength="4" placeholder="2011"></label>
+        <label>Combustible<select id="chqComb"><option>Gasolina</option><option>Diésel</option></select></label>
+        <label>Motor <small>(opcional)</small><input type="text" id="chqMotor" placeholder="K7M 1.6 8V"></label>
+        <label>Matrícula <small>(para el historial)</small><input type="text" id="chqMat" placeholder="1234 ABC" autocapitalize="characters"></label>
+        <label class="ancho">Síntoma observado <small>(opcional)</small><input type="text" id="chqSintoma" maxlength="300" placeholder="Ej.: consumo alto, ralentí inestable en frío"></label>
+      </div>
+      <div class="fila" style="margin-top:12px">
+        <button class="boton primario grande" id="btnChq" onclick="chqIniciar()">Iniciar chequeo de coherencia</button>
+      </div>
+      <div id="chqAviso"></div>
+    </div>
+
+    <div class="panel" id="chqAsistente" hidden>
+      <div class="chq-vivo" id="chqVivo"></div>
+      <div id="chqPaso"></div>
+    </div>
+
+    <div class="panel" id="chqResultado" hidden></div>
+
+    <div class="panel">
+      <h2 style="margin:0 0 6px">Análisis con IA</h2>
+      <p class="mensaje-con" style="margin-top:0">La llamada sale directa de este navegador a la API de Anthropic con tu propia clave
+        (se guarda solo en este aparato y no se sube a GitHub). Sin clave puedes copiar los datos o mandarlos al buzón de Claude.</p>
+      <div class="chq-form">
+        <label class="ancho">Clave de la API de Anthropic<input type="password" id="chqClave" placeholder="sk-ant-…" autocomplete="off" spellcheck="false"></label>
+        <label>Modelo<input type="text" id="chqModeloIA" spellcheck="false"></label>
+      </div>
+      <div class="fila" style="margin-top:8px"><button class="boton chico" onclick="chqGuardarClave()">Guardar</button>
+        <span class="mensaje-con" id="chqClaveInfo" style="margin:0"></span></div>
+    </div>
+
+    <div class="panel">
+      <div class="fila" style="justify-content:space-between"><h2 style="margin:0">Historial: antes y después</h2>
+        <button class="boton chico" onclick="chqHistorial()">↻</button></div>
+      <p class="mensaje-con" style="margin-top:4px">Agrupado por VIN o matrícula. Marca dos chequeos del mismo coche para compararlos.</p>
+      <div id="chqHist" class="vacio">Cargando…</div>
+      <div id="chqComp"></div>
+    </div>
   </section>
 
   <!-- CLAUDE -->
@@ -608,6 +675,7 @@ function mostrarPestana(nombre, cargar = true){  // cargar=false: quien la abre 
   if (nombre==="rutas") cargarRutas();
   if (nombre==="mantenimiento") cargarMantenimiento();
   if (nombre==="claude") cargarClaude();
+  if (nombre==="chequeo") chqCargar();
 }
 document.querySelectorAll("#pestanas button").forEach(b => b.onclick = () => mostrarPestana(b.dataset.p));
 
@@ -1077,6 +1145,7 @@ function pintar(f){
   pintarDiagnostico(f.diagnostico, hay);
   pintarAverias(f.averias);
   pintarResumen(f.resumen);
+  pintarChequeoVivo(f);
 }
 
 const ETQ_SIS = {verde:"Bien", amarillo:"Ojo", rojo:"Revisar", gris:"Sin datos aún"};
@@ -2281,6 +2350,290 @@ function irARuta(carpeta){  // al pulsar la pestaña ya se cargan las rutas (una
   const abrirla = () => { const r = (rutasCache || []).find(x => x.viajes.some(v => v.carpeta === carpeta)); if (r) verRuta(r.id, carpeta); };
   mostrarPestana("rutas", false);
   cargarRutas().then(abrirla);
+}
+
+// ------------------------------------------------------------------ pestaña «Chequeo»: coherencia y prediagnóstico IA
+const CHQ_PROMPT = `Eres un electromecánico experto en diagnosis multimarca. Recibirás datos reales OBD2 capturados al ralentí y a 2.500 rpm de un vehículo.
+
+Tu objetivo NO es repetir definiciones genéricas de códigos de error, sino cruzar los sensores entre sí para detectar incoherencias físicas y fallos silenciosos (incluso si hay 0 DTCs).
+
+Reglas de análisis obligatorias:
+- Evalúa coherencia térmica (ECT vs IAT con motor caliente; si ECT < 80°C sospecha de termostato o sensor mintiendo).
+- Evalúa la mezcla comparando STFT + LTFT al ralentí frente a 2.500 rpm (ej. LTFT alto al ralentí que baja al acelerar = fuga de vacío; si sube al acelerar = falta de combustible o MAF/MAP).
+- Evalúa sensores de oxígeno (oscilación de B1S1 vs estabilidad de B1S2) y voltaje de carga (13.8V - 14.5V).
+- Cruza siempre el diagnóstico con fallos endémicos conocidos del motor indicado si se proporciona.
+
+Responde siempre en español y con este formato estricto y directo para taller:
+1. RESUMEN DE COHERENCIA: Qué parámetros están fuera de rango o se contradicen.
+2. TOP 3 CAUSAS PROBABLES (ordenadas de mayor a menor probabilidad): Explicando en 1-2 líneas por qué encaja con los números.
+3. PRUEBA DE CONFIRMACIÓN EN TALLER: Qué comprobar físicamente (polímetro, vacío, prueba visual) antes de pedir ninguna pieza.
+Si faltan datos críticos para concluir, indícalo sin inventar.`;
+const CHQ_MODELO = "claude-sonnet-5-5";
+const CHQ_CAMPOS = {vin:"chqVin", marca:"chqMarca", modelo:"chqModelo", anio:"chqAnio", combustible:"chqComb", motor:"chqMotor", matricula:"chqMat"};
+const CHQ_RPM = [2250, 2750];
+let chq = {actual: null, fase: null, fin: 0, ver: null, cerrando: false, marcados: []};
+
+function chqVehiculo(){ const v = {}; for (const [k, id] of Object.entries(CHQ_CAMPOS)) v[k] = $(id).value.trim(); v.vin = v.vin.toUpperCase(); return v; }
+function chqPonerVehiculo(v){ for (const [k, id] of Object.entries(CHQ_CAMPOS)) if (v && v[k]) $(id).value = v[k]; }
+const chqConectado = () => ultimo?.conexion?.estado === "conectado";
+const chqVal = k => ultimo?.valores?.[k]?.v;
+
+async function chqCargar(){
+  if (!chq.cargado) {
+    chq.cargado = true;
+    try { chqPonerVehiculo(JSON.parse(guardado.leer("chqVehiculo") || "null")); } catch {}
+    $("chqClave").value = guardado.leer("chqClave") || "";
+    $("chqModeloIA").value = guardado.leer("chqModeloIA") || CHQ_MODELO;
+    $("chqClaveInfo").textContent = $("chqClave").value ? "Clave guardada en este aparato." : "Sin clave.";
+  }
+  const vin = ultimo?.averias?.vin || ultimo?.conexion?.vin;
+  if (vin && !$("chqVin").value) { $("chqVin").value = vin; $("chqVinInfo").textContent = "· leído del coche"; }
+  const e = await api("/api/chequeo", {accion: "estado"}).catch(() => null);
+  if (e?.ok && e.dato.actual && !chq.actual) { chq.actual = e.dato.actual; chqPintarPaso(); }
+  chqHistorial();
+}
+function chqGuardarClave(){
+  guardado.poner("chqClave", $("chqClave").value.trim());
+  guardado.poner("chqModeloIA", $("chqModeloIA").value.trim() || CHQ_MODELO);
+  $("chqClaveInfo").textContent = $("chqClave").value.trim() ? "Clave guardada en este aparato." : "Clave borrada.";
+}
+async function chqLeerVin(){
+  if (!chqConectado()) return tostada("Primero conecta con el coche");
+  tostada("Pidiendo el VIN (09 02)…");
+  const r = await api("/api/vin", {});
+  if (!r.ok) return tostada(r.error || "No se pudo leer");
+  if (r.dato) { $("chqVin").value = r.dato; $("chqVinInfo").textContent = "· leído del coche"; tostada("VIN leído ✓"); }
+  else { $("chqVinInfo").textContent = "· la centralita no lo da: rellena marca, modelo y año"; tostada("Esta centralita no da el VIN"); }
+}
+
+async function chqIniciar(){
+  if (!chqConectado()) return tostada("Primero conecta con el coche (arriba)");
+  const b = $("btnChq"); b.disabled = true; b.textContent = "Leyendo averías y VIN…";
+  try {
+    await api("/api/averias", {});  // 03 / 07 recién leídos
+    if (!$("chqVin").value.trim()) {
+      const r = await api("/api/vin", {});
+      if (r.ok && r.dato) { $("chqVin").value = r.dato; $("chqVinInfo").textContent = "· leído del coche"; }
+      else $("chqVinInfo").textContent = "· la centralita no lo da: rellena marca, modelo y año";
+    }
+    const v = chqVehiculo();
+    guardado.poner("chqVehiculo", JSON.stringify(v));
+    const r = await api("/api/chequeo", {accion: "empezar", vehiculo: v, sintoma: $("chqSintoma").value});
+    if (!r.ok) { $("chqAviso").innerHTML = `<div class="aviso rojo">${esc(r.error)}</div>`; return; }
+    $("chqAviso").innerHTML = "";
+    chq.actual = r.dato; chq.ver = null;
+    $("chqResultado").hidden = true;
+    chqPintarPaso();
+    $("chqAsistente").scrollIntoView({behavior: "smooth", block: "start"});
+  } finally { b.disabled = false; b.textContent = "Iniciar chequeo de coherencia"; }
+}
+
+function chqSiguienteFase(){ const a = chq.actual; return !a ? null : !a.ralenti ? "ralenti" : !a["2500"] ? "2500" : null; }
+
+function chqPintarPaso(){
+  const a = chq.actual; if (!a) { $("chqAsistente").hidden = true; return; }
+  $("chqAsistente").hidden = false;
+  const fase = chqSiguienteFase(), d = a.dtc || {};
+  const nd = (d.guardados_03 || []).length, np = (d.pendientes_07 || []).length;
+  const cab = `<div class="mensaje-con" style="margin-top:0">${esc(chqTituloVeh(a.vehiculo))} · DTC: ${nd} guardado${nd===1?"":"s"}, ${np} pendiente${np===1?"":"s"}</div>`;
+  if (chq.fase) {
+    $("chqPaso").innerHTML = cab + `<h3>Capturando ${chq.fase === "ralenti" ? "ralentí" : "2.500 rpm"}…</h3><div class="chq-cuenta" id="chqCuenta">5</div>
+      <p class="mensaje-con" style="text-align:center">${chq.fase === "ralenti" ? "No toques el acelerador." : "Mantén las 2.500 rpm sin moverte."}</p>`;
+    return;
+  }
+  if (fase === "ralenti") {
+    $("chqPaso").innerHTML = cab + `<h3>Fase 1 de 2 · Ralentí</h3>
+      <ol class="pasos"><li>Motor en marcha y caliente (ventilador ya ha saltado una vez, o ECT de 80 °C o más).</li>
+      <li>Al ralentí, sin tocar el acelerador. Luces, aire acondicionado y consumidores apagados.</li>
+      <li>Pulsa <b>Capturar</b>: son 5 segundos.</li></ol>
+      <div id="chqFrio"></div>
+      <div class="fila"><button class="boton primario grande" onclick="chqCapturar('ralenti')">Capturar ralentí</button>
+        <button class="boton" onclick="chqCancelar()">Cancelar</button></div>`;
+  } else if (fase === "2500") {
+    $("chqPaso").innerHTML = cab + `<h3>Fase 2 de 2 · 2.500 rpm en vacío</h3>
+      <ol class="pasos"><li>En punto muerto, sube el motor a <b>2.500 rpm</b> y mantenlo fijo (mira las rpm de arriba).</li>
+      <li>Cuando esté estable, pulsa <b>Capturar</b> y aguanta 5 segundos.</li></ol>
+      <div class="fila"><button class="boton primario grande" id="btn2500" onclick="chqCapturar('2500')">Capturar 2.500 rpm</button>
+        <button class="boton chico" onclick="chqCapturar('2500', true)">Capturar igualmente</button>
+        <button class="boton" onclick="chqCancelar()">Cancelar</button></div>
+      <div class="mensaje-con" id="chqRpmMsg"></div>`;
+  } else {
+    $("chqAsistente").hidden = true;
+  }
+  pintarChequeoVivo(ultimo || {});
+}
+function chqTituloVeh(v){
+  v = v || {};
+  return [v.marca, v.modelo, v.anio, v.motor].filter(Boolean).join(" ") + (v.matricula ? ` · ${v.matricula}` : "") + (v.vin ? ` · VIN ${v.vin}` : "") || "Vehículo";
+}
+
+function pintarChequeoVivo(f){
+  const caja = $("chqVivo"); if (!caja || $("chqAsistente").hidden) return;
+  const v = k => f?.valores?.[k]?.v;
+  const ect = v("temp_motor"), rpm = v("rpm"), bat = v("bateria"), s = v("stft"), l = v("ltft");
+  const fase = chq.fase || chqSiguienteFase();
+  const cRpm = rpm == null ? "gris" : fase === "2500" ? (rpm >= CHQ_RPM[0] && rpm <= CHQ_RPM[1] ? "verde" : "amarillo") : (rpm > 400 ? "verde" : "rojo");
+  const n = (x, d = 0) => x == null ? "–" : Number(x).toFixed(d).replace(".", ",");
+  caja.innerHTML = `<div class="${cRpm}"><small>RPM${fase === "2500" ? " (objetivo 2.500)" : ""}</small><b>${n(rpm)}</b></div>
+    <div class="${ect == null ? "gris" : ect >= 80 ? "verde" : "rojo"}"><small>ECT</small><b>${n(ect)} °C</b></div>
+    <div class="${s == null || l == null ? "gris" : Math.abs(s + l) <= 10 ? "verde" : "amarillo"}"><small>STFT + LTFT</small><b>${s == null || l == null ? "–" : (s + l > 0 ? "+" : "") + n(s + l, 1) + " %"}</b></div>
+    <div class="${bat == null ? "gris" : bat >= 13.8 && bat <= 14.5 ? "verde" : "amarillo"}"><small>Batería</small><b>${n(bat, 2)} V</b></div>`;
+  const frio = $("chqFrio");
+  if (frio) frio.innerHTML = ect != null && ect < 80 ? `<div class="aviso rojo" style="margin:0 0 12px">El motor está a ${n(ect)} °C: espera a que pase de 80 °C. Si lleva más de 15 min en marcha y no sube, eso ya es un dato (termostato o sensor).</div>` : "";
+  const b = $("btn2500"), m = $("chqRpmMsg");
+  if (b && !chq.fase) { const ok = rpm >= CHQ_RPM[0] && rpm <= CHQ_RPM[1]; b.disabled = !ok; if (m) m.textContent = ok ? "" : `Lleva el motor a 2.500 rpm (ahora ${n(rpm)}). Se activa entre ${CHQ_RPM[0]} y ${CHQ_RPM[1]}.`; }
+  const cu = $("chqCuenta");
+  if (cu && chq.fase) cu.textContent = Math.max(0, Math.ceil((chq.fin - Date.now()) / 1000));
+}
+
+async function chqCapturar(fase, forzar){
+  if (chq.fase) return;
+  const rpm = chqVal("rpm");
+  if (fase === "2500" && !forzar && !(rpm >= CHQ_RPM[0] && rpm <= CHQ_RPM[1])) return tostada("Primero lleva el motor a 2.500 rpm");
+  if (fase === "ralenti" && rpm > 1300 && !confirm(`El motor está a ${Math.round(rpm)} rpm: eso no es ralentí. ¿Capturar igualmente?`)) return;
+  const r = await api("/api/chequeo", {accion: "capturar", fase});
+  if (!r.ok) return tostada(r.error || "No se pudo empezar la captura");
+  chq.fase = fase; chq.fin = Date.now() + r.dato.duracion * 1000;
+  chqPintarPaso();
+  const t = setInterval(() => pintarChequeoVivo(ultimo || {}), 250);
+  await new Promise(ok => setTimeout(ok, r.dato.duracion * 1000 + 400));
+  clearInterval(t);
+  let c = await api("/api/chequeo", {accion: "cerrar_fase"});
+  if (!c.ok && /aún no/.test(c.error || "")) { await new Promise(ok => setTimeout(ok, 800)); c = await api("/api/chequeo", {accion: "cerrar_fase"}); }
+  chq.fase = null;
+  if (!c.ok) { tostada(c.error || "Fallo al cerrar la captura"); return chqPintarPaso(); }
+  chq.actual = c.dato;
+  tostada(fase === "ralenti" ? "Ralentí capturado ✓ · ahora 2.500 rpm" : "Chequeo completo ✓");
+  chqPintarPaso();
+  chqPintarResultado(c.dato);
+  chqHistorial();
+}
+async function chqCancelar(){
+  await api("/api/chequeo", {accion: "cancelar"});
+  chq.fase = null; chq.actual = null; $("chqAsistente").hidden = true;
+}
+
+function chqCelda(x, dec){
+  if (x == null) return `<span class="chq-na">–</span>`;
+  if (typeof x === "string") return `<span class="chq-na">${esc(x)}</span>`;
+  return Number(x).toFixed(dec).replace(".", ",");
+}
+const chqDec = u => u === "V" ? 2 : u === "%" || u === "g/s" ? 1 : 0;
+
+function chqPintarResultado(d){
+  chq.ver = d;
+  const p = d.para_ia, out = $("chqResultado");
+  out.hidden = false;
+  const dtc = d.dtc || {};
+  const lista = l => (l || []).length ? l.map(x => `<b>${esc(x.codigo)}</b> ${esc(x.descripcion || "")}`).join("<br>") : "Ninguno";
+  const filas = p.tabla_ralenti_vs_2500.map(f => `<tr><td>${esc(f.parametro)}</td><td>${chqCelda(f.ralenti, chqDec(f.unidad))}</td><td>${chqCelda(f["2500"], chqDec(f.unidad))}</td><td>${esc(f.unidad)}</td></tr>`).join("");
+  const av = (d.comprobaciones || []);
+  out.innerHTML = `<div class="fila" style="justify-content:space-between"><h2 style="margin:0">Resultado · ${esc(d.fecha)}</h2>
+      <button class="boton chico" onclick="$('chqResultado').hidden=true">✕</button></div>
+    <div class="mensaje-con" style="margin-top:2px">${esc(chqTituloVeh(d.vehiculo))}${d.sintoma ? " · Síntoma: " + esc(d.sintoma) : ""}</div>
+    <h3>Averías</h3><div style="font-size:14px">Guardadas (03): ${lista(dtc.guardados_03)}<br>Pendientes (07): ${lista(dtc.pendientes_07)}</div>
+    <h3>Ralentí vs 2.500 rpm <span style="text-transform:none;font-weight:400">· media de 5 s</span></h3>
+    <div class="tabla-scroll"><table class="tabla-comp"><thead><tr><th>Parámetro</th><th>Ralentí</th><th>2.500</th><th></th></tr></thead><tbody>${filas}</tbody></table></div>
+    <h3>Comprobaciones automáticas <span style="text-transform:none;font-weight:400">· reglas fijas, sin IA</span></h3>
+    ${av.length ? av.map(x => `<div class="aviso ${x.nivel === "rojo" ? "rojo" : ""}" style="margin-top:6px">${esc(x.texto)}</div>`).join("") : `<div class="vacio">Nada fuera de lo normal con estas reglas.</div>`}
+    <h3>Análisis IA</h3>
+    <div class="fila"><button class="boton primario" id="btnIA" onclick="chqAnalizarIA()" ${d.ralenti && d["2500"] ? "" : "disabled"}>${d.ia ? "Volver a analizar" : "Analizar con IA"}</button>
+      <button class="boton chico" onclick="chqCopiar()">Copiar datos (JSON)</button>
+      <button class="boton chico" onclick="chqBuzon()">Mandar al buzón de Claude</button></div>
+    ${d.ralenti && d["2500"] ? "" : `<div class="mensaje-con">Falta una de las dos fases para poder analizar.</div>`}
+    <div id="chqIA" class="md" style="margin-top:12px">${d.ia ? md(d.ia.texto) + `<p class="mensaje-con">${esc(d.ia.modelo)} · ${esc(d.ia.fecha)}</p>` : ""}</div>`;
+}
+
+async function chqAnalizarIA(){
+  const d = chq.ver; if (!d) return;
+  const clave = guardado.leer("chqClave") || $("chqClave").value.trim();
+  if (!clave) return tostada("Pon tu clave de la API de Anthropic (más abajo) o usa «Copiar datos»");
+  if (!navigator.onLine) return tostada("Sin internet");
+  const modelo = guardado.leer("chqModeloIA") || CHQ_MODELO, b = $("btnIA"), caja = $("chqIA");
+  b.disabled = true; b.textContent = "Analizando…"; caja.innerHTML = `<div class="vacio">Esperando a la IA…</div>`;
+  try {
+    const r = await fetch("https://api.anthropic.com/v1/messages", {method: "POST", headers: {
+        "x-api-key": clave, "anthropic-version": "2023-06-01", "content-type": "application/json",
+        "anthropic-dangerous-direct-browser-access": "true"},
+      body: JSON.stringify({model: modelo, max_tokens: 2000, system: CHQ_PROMPT,
+        messages: [{role: "user", content: "Datos OBD2 capturados (JSON):\n" + JSON.stringify(d.para_ia, null, 1)}]})});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j?.error?.message || `La API contesta ${r.status}`);
+    const texto = (j.content || []).filter(c => c.type === "text").map(c => c.text).join("\n").trim();
+    if (!texto) throw new Error("La IA no ha devuelto texto");
+    caja.innerHTML = md(texto) + `<p class="mensaje-con">${esc(j.model || modelo)}</p>`;
+    await api("/api/chequeo", {accion: "guardar_ia", id: d.id, texto, modelo: j.model || modelo});
+    d.ia = {texto, modelo: j.model || modelo};
+    chqHistorial();
+  } catch (e) {
+    caja.innerHTML = `<div class="aviso rojo">No se pudo analizar: ${esc(e.message || e)}</div>`;
+  } finally { b.disabled = false; b.textContent = "Volver a analizar"; }
+}
+function chqTextoDatos(){ return JSON.stringify(chq.ver.para_ia, null, 1); }
+async function chqCopiar(){
+  if (!chq.ver) return;
+  const t = "SYSTEM PROMPT:\n" + CHQ_PROMPT + "\n\nDATOS OBD2 (JSON):\n" + chqTextoDatos();
+  try { await navigator.clipboard.writeText(t); tostada("Copiado: prompt + datos"); }
+  catch { prompt("Copia esto:", t); }
+}
+async function chqBuzon(){
+  if (!chq.ver) return;
+  const t = `Chequeo de coherencia ${chq.ver.id}: analízalo con el prompt de taller del chequeo.\n\`\`\`json\n${JSON.stringify(chq.ver.para_ia)}\n\`\`\``;
+  if (t.length > 4000) return tostada("Demasiado largo para el buzón: usa «Copiar datos»");
+  const r = await api("/api/buzon", {texto: t});
+  tostada(r.ok ? (r.dato || "Enviado a Claude ✓") : (r.error || "No se pudo enviar"));
+}
+
+async function chqHistorial(){
+  const g = await api("/api/chequeos").catch(() => null);
+  const caja = $("chqHist");
+  if (!Array.isArray(g) || !g.length) { caja.className = "vacio"; caja.textContent = "Todavía no hay chequeos guardados."; return; }
+  caja.className = "";
+  const n = x => x == null ? "–" : (x > 0 ? "+" : "") + Number(x).toFixed(1).replace(".", ",");
+  caja.innerHTML = g.map(gr => `<h3>${esc(chqTituloVeh(gr.vehiculo))}</h3>
+    <div class="tabla-scroll"><table class="tabla-comp"><thead><tr><th></th><th>Fecha</th><th>LTFT ral.</th><th>LTFT 2.500</th><th>DTC</th><th></th></tr></thead><tbody>
+    ${gr.chequeos.map(c => `<tr><td><input type="checkbox" ${chq.marcados.includes(c.id) ? "checked" : ""} onchange="chqMarcar('${c.id}', this.checked)"></td>
+      <td style="text-align:left">${esc(c.fecha)}${c.sintoma ? `<br><small class="mensaje-con">${esc(c.sintoma)}</small>` : ""}${c.ia ? " · IA" : ""}</td>
+      <td>${n(c.ltft.ralenti)}</td><td>${n(c.ltft["2500"])}</td><td>${c.dtc}</td>
+      <td><button class="boton chico" onclick="chqVer('${c.id}')">Ver</button> <button class="boton chico" onclick="chqBorrar('${c.id}')">✕</button></td></tr>`).join("")}
+    </tbody></table></div>`).join("");
+}
+async function chqVer(id){
+  const d = await api("/api/chequeo/" + id);
+  if (!d || d.error) return tostada("No encuentro ese chequeo");
+  chqPintarResultado(d);
+  $("chqResultado").scrollIntoView({behavior: "smooth", block: "start"});
+}
+async function chqBorrar(id){
+  if (!confirm("¿Borrar este chequeo del historial?")) return;
+  const r = await api("/api/chequeo", {accion: "borrar", id});
+  if (!r.ok) return tostada(r.error || "No se pudo borrar");
+  chq.marcados = chq.marcados.filter(x => x !== id);
+  chqHistorial(); chqComparar();
+}
+function chqMarcar(id, si){
+  chq.marcados = chq.marcados.filter(x => x !== id);
+  if (si) chq.marcados.push(id);
+  if (chq.marcados.length > 2) chq.marcados.shift();
+  chqHistorial(); chqComparar();
+}
+async function chqComparar(){
+  const caja = $("chqComp");
+  if (chq.marcados.length !== 2) { caja.innerHTML = chq.marcados.length ? `<div class="mensaje-con">Marca otro para comparar.</div>` : ""; return; }
+  const [a, b] = (await Promise.all(chq.marcados.map(id => api("/api/chequeo/" + id)))).sort((x, y) => String(x.id).localeCompare(String(y.id)));
+  if (!a || a.error || !b || b.error) { caja.innerHTML = ""; return; }
+  const aviso = a.clave_vehiculo !== b.clave_vehiculo ? `<div class="aviso">Ojo: son de vehículos distintos.</div>` : "";
+  const fila = (fa, fb, u) => {
+    const dec = chqDec(u), ok = typeof fa === "number" && typeof fb === "number", dlt = ok ? fb - fa : null;
+    const cls = !ok || Math.abs(dlt) < Math.pow(10, -dec) ? "" : (dlt > 0 ? "sube" : "baja");
+    return `<td>${chqCelda(fa, dec)}</td><td>${chqCelda(fb, dec)}</td><td class="chq-delta ${["%"].includes(u) ? cls : ""}">${ok ? (dlt > 0 ? "+" : "") + dlt.toFixed(dec).replace(".", ",") : ""}</td>`;
+  };
+  const ta = a.para_ia.tabla_ralenti_vs_2500, tb = b.para_ia.tabla_ralenti_vs_2500;
+  caja.innerHTML = `<h3>Antes (${esc(a.fecha)}) → después (${esc(b.fecha)})</h3>${aviso}
+    <div class="tabla-scroll"><table class="tabla-comp"><thead><tr><th>Parámetro</th><th>Ral. antes</th><th>Ral. después</th><th>Δ</th><th>2.500 antes</th><th>2.500 después</th><th>Δ</th></tr></thead><tbody>
+    ${ta.map((f, i) => `<tr><td>${esc(f.parametro)} <small class="mensaje-con">${esc(f.unidad)}</small></td>${fila(f.ralenti, tb[i]?.ralenti, f.unidad)}${fila(f["2500"], tb[i]?.["2500"], f.unidad)}</tr>`).join("")}
+    </tbody></table></div>
+    <div class="mensaje-con">DTC antes: ${a.dtc.guardados_03.length + a.dtc.pendientes_07.length} · después: ${b.dtc.guardados_03.length + b.dtc.pendientes_07.length}</div>`;
 }
 
 function escuchar(){

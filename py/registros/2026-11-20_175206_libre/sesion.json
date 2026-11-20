@@ -1,0 +1,100 @@
+{
+  "coche": {
+    "modelo": "Dacia Sandero Stepway",
+    "año": 2011,
+    "motor": "K7M A8 1.6 8V gasolina"
+  },
+  "inicio": "2026-11-20T17:52:06",
+  "inicio_utc": "2026-11-20T17:52:06+00:00",
+  "prueba": {
+    "tipo": "libre",
+    "nombre": "Grabación libre"
+  },
+  "lector": {
+    "version": "ELM327 v1.5",
+    "protocolo": "AUTO, ISO 14230-4 (KWP FAST)",
+    "pids_soportados": [
+      "01",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "0B",
+      "0C",
+      "0D",
+      "0E",
+      "0F",
+      "11",
+      "13",
+      "14",
+      "15",
+      "1C",
+      "1F",
+      "20",
+      "21",
+      "30",
+      "31",
+      "33"
+    ],
+    "destino": "Simulador (coche de prueba)",
+    "vin": null
+  },
+  "averias": {
+    "hora": "17:52:05",
+    "guardadas": [],
+    "pendientes": [
+      {
+        "codigo": "P0505",
+        "descripcion": "Control del ralentí: fallo",
+        "gravedad": 2,
+        "gravedad_texto": "Revisar pronto",
+        "consejo": "En el K7M es muy típico: motor paso a paso de ralentí sucio o averiado. Limpiar mariposa y motor de ralentí.",
+        "conocido": true
+      }
+    ],
+    "permanentes": [],
+    "monitores": {
+      "testigo": false,
+      "num_averias": 0,
+      "monitores": [
+        {
+          "nombre": "Fallos de encendido",
+          "completo": true
+        },
+        {
+          "nombre": "Sistema de gasolina",
+          "completo": true
+        },
+        {
+          "nombre": "Componentes",
+          "completo": true
+        },
+        {
+          "nombre": "Catalizador",
+          "completo": false
+        },
+        {
+          "nombre": "Vapores de gasolina (canister)",
+          "completo": true
+        },
+        {
+          "nombre": "Sondas lambda",
+          "completo": true
+        },
+        {
+          "nombre": "Calefactor de las sondas",
+          "completo": true
+        }
+      ]
+    },
+    "foto": null,
+    "km_desde_borrado": 42,
+    "calentamientos_borrado": 3,
+    "km_con_testigo": 0,
+    "vin": null
+  },
+  "notas": [],
+  "correccion_velocidad": 1.0,
+  "fin": "2026-11-20T17:52:13"
+}

@@ -39,6 +39,23 @@ PARAMETROS = [
 ]
 FASES = {"ralenti": "Ralentí", "2500": "2.500 rpm"}
 
+# Instrucciones fijas para la IA (las usa puente_claude.py y la web para «Copiar datos»)
+PROMPT_TALLER = """Eres un electromecánico experto en diagnosis multimarca. Recibirás datos reales OBD2 capturados al ralentí y a 2.500 rpm de un vehículo.
+
+Tu objetivo NO es repetir definiciones genéricas de códigos de error, sino cruzar los sensores entre sí para detectar incoherencias físicas y fallos silenciosos (incluso si hay 0 DTCs).
+
+Reglas de análisis obligatorias:
+- Evalúa coherencia térmica (ECT vs IAT con motor caliente; si ECT < 80°C sospecha de termostato o sensor mintiendo).
+- Evalúa la mezcla comparando STFT + LTFT al ralentí frente a 2.500 rpm (ej. LTFT alto al ralentí que baja al acelerar = fuga de vacío; si sube al acelerar = falta de combustible o MAF/MAP).
+- Evalúa sensores de oxígeno (oscilación de B1S1 vs estabilidad de B1S2) y voltaje de carga (13.8V - 14.5V).
+- Cruza siempre el diagnóstico con fallos endémicos conocidos del motor indicado si se proporciona.
+
+Responde siempre en español y con este formato estricto y directo para taller:
+1. RESUMEN DE COHERENCIA: Qué parámetros están fuera de rango o se contradicen.
+2. TOP 3 CAUSAS PROBABLES (ordenadas de mayor a menor probabilidad): Explicando en 1-2 líneas por qué encaja con los números.
+3. PRUEBA DE CONFIRMACIÓN EN TALLER: Qué comprobar físicamente (polímetro, vacío, prueba visual) antes de pedir ninguna pieza.
+Si faltan datos críticos para concluir, indícalo sin inventar."""
+
 _captura = {"fase": None, "t0": 0.0}
 _actual = None  # chequeo en curso (dict) hasta que se guarda
 
@@ -250,7 +267,7 @@ def detalle(id_):
     ch = _leer(id_)
     if not ch:
         return None
-    return {**ch, "para_ia": para_ia(ch), "comprobaciones": comprobaciones(ch), "parametros": _defs()}
+    return {**ch, "para_ia": para_ia(ch), "comprobaciones": comprobaciones(ch), "parametros": _defs(), "prompt": PROMPT_TALLER}
 
 
 def _defs():
@@ -306,7 +323,7 @@ def accion(L, cuerpo):
         _actual[fase] = _cerrar_fase(L, fase, t0, t1)
         _actual["dtc"] = _dtcs(L)  # por si se volvieron a leer entre medias
         _guardar(_actual)
-        return _resp({**_actual, "comprobaciones": comprobaciones(_actual), "para_ia": para_ia(_actual)})
+        return _resp({**_actual, "comprobaciones": comprobaciones(_actual), "para_ia": para_ia(_actual), "prompt": PROMPT_TALLER})
     if a == "cancelar":
         _captura.update(fase=None, t0=0.0)
         return _resp(True)

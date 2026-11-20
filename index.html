@@ -514,15 +514,17 @@ label.marca{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size
     <div class="panel" id="chqResultado" hidden></div>
 
     <div class="panel">
-      <h2 style="margin:0 0 6px">Análisis con IA</h2>
-      <p class="mensaje-con" style="margin-top:0">La llamada sale directa de este navegador a la API de Anthropic con tu propia clave
-        (se guarda solo en este aparato y no se sube a GitHub). Sin clave puedes copiar los datos o mandarlos al buzón de Claude.</p>
+      <h2 style="margin:0 0 6px">Tu Claude (cuenta Pro)</h2>
+      <p class="mensaje-con" style="margin-top:0">El análisis lo hace Claude Code en tu Acer, con tu suscripción Pro: sin API ni pago por uso.
+        La web solo habla con el puente del Acer (<code>puente_claude.py</code>) a través de Tailscale. La dirección y la llave se guardan
+        solo en este aparato.</p>
       <div class="chq-form">
-        <label class="ancho">Clave de la API de Anthropic<input type="password" id="chqClave" placeholder="sk-ant-…" autocomplete="off" spellcheck="false"></label>
-        <label>Modelo<input type="text" id="chqModeloIA" spellcheck="false"></label>
+        <label class="ancho">Dirección del puente<input type="text" id="chqPuente" placeholder="https://sulo-aspiree5.xxxx.ts.net" autocapitalize="off" spellcheck="false" inputmode="url"></label>
+        <label class="ancho">Llave del puente<input type="password" id="chqLlave" placeholder="la que muestra puente_claude.py al arrancar" autocomplete="off" spellcheck="false"></label>
       </div>
-      <div class="fila" style="margin-top:8px"><button class="boton chico" onclick="chqGuardarClave()">Guardar</button>
-        <span class="mensaje-con" id="chqClaveInfo" style="margin:0"></span></div>
+      <div class="fila" style="margin-top:8px"><button class="boton chico" onclick="chqGuardarPuente()">Guardar</button>
+        <button class="boton chico" onclick="chqProbarPuente()">Probar conexión</button>
+        <span class="mensaje-con" id="chqPuenteInfo" style="margin:0"></span></div>
     </div>
 
     <div class="panel">
@@ -2353,22 +2355,6 @@ function irARuta(carpeta){  // al pulsar la pestaña ya se cargan las rutas (una
 }
 
 // ------------------------------------------------------------------ pestaña «Chequeo»: coherencia y prediagnóstico IA
-const CHQ_PROMPT = `Eres un electromecánico experto en diagnosis multimarca. Recibirás datos reales OBD2 capturados al ralentí y a 2.500 rpm de un vehículo.
-
-Tu objetivo NO es repetir definiciones genéricas de códigos de error, sino cruzar los sensores entre sí para detectar incoherencias físicas y fallos silenciosos (incluso si hay 0 DTCs).
-
-Reglas de análisis obligatorias:
-- Evalúa coherencia térmica (ECT vs IAT con motor caliente; si ECT < 80°C sospecha de termostato o sensor mintiendo).
-- Evalúa la mezcla comparando STFT + LTFT al ralentí frente a 2.500 rpm (ej. LTFT alto al ralentí que baja al acelerar = fuga de vacío; si sube al acelerar = falta de combustible o MAF/MAP).
-- Evalúa sensores de oxígeno (oscilación de B1S1 vs estabilidad de B1S2) y voltaje de carga (13.8V - 14.5V).
-- Cruza siempre el diagnóstico con fallos endémicos conocidos del motor indicado si se proporciona.
-
-Responde siempre en español y con este formato estricto y directo para taller:
-1. RESUMEN DE COHERENCIA: Qué parámetros están fuera de rango o se contradicen.
-2. TOP 3 CAUSAS PROBABLES (ordenadas de mayor a menor probabilidad): Explicando en 1-2 líneas por qué encaja con los números.
-3. PRUEBA DE CONFIRMACIÓN EN TALLER: Qué comprobar físicamente (polímetro, vacío, prueba visual) antes de pedir ninguna pieza.
-Si faltan datos críticos para concluir, indícalo sin inventar.`;
-const CHQ_MODELO = "claude-sonnet-5-5";
 const CHQ_CAMPOS = {vin:"chqVin", marca:"chqMarca", modelo:"chqModelo", anio:"chqAnio", combustible:"chqComb", motor:"chqMotor", matricula:"chqMat"};
 const CHQ_RPM = [2250, 2750];
 let chq = {actual: null, fase: null, fin: 0, ver: null, cerrando: false, marcados: []};
@@ -2382,9 +2368,9 @@ async function chqCargar(){
   if (!chq.cargado) {
     chq.cargado = true;
     try { chqPonerVehiculo(JSON.parse(guardado.leer("chqVehiculo") || "null")); } catch {}
-    $("chqClave").value = guardado.leer("chqClave") || "";
-    $("chqModeloIA").value = guardado.leer("chqModeloIA") || CHQ_MODELO;
-    $("chqClaveInfo").textContent = $("chqClave").value ? "Clave guardada en este aparato." : "Sin clave.";
+    $("chqPuente").value = guardado.leer("chqPuente") || "";
+    $("chqLlave").value = guardado.leer("chqLlave") || "";
+    $("chqPuenteInfo").textContent = $("chqPuente").value && $("chqLlave").value ? "Guardado en este aparato." : "Sin configurar.";
   }
   const vin = ultimo?.averias?.vin || ultimo?.conexion?.vin;
   if (vin && !$("chqVin").value) { $("chqVin").value = vin; $("chqVinInfo").textContent = "· leído del coche"; }
@@ -2392,10 +2378,41 @@ async function chqCargar(){
   if (e?.ok && e.dato.actual && !chq.actual) { chq.actual = e.dato.actual; chqPintarPaso(); }
   chqHistorial();
 }
-function chqGuardarClave(){
-  guardado.poner("chqClave", $("chqClave").value.trim());
-  guardado.poner("chqModeloIA", $("chqModeloIA").value.trim() || CHQ_MODELO);
-  $("chqClaveInfo").textContent = $("chqClave").value.trim() ? "Clave guardada en este aparato." : "Clave borrada.";
+function chqPuenteDatos(){
+  return {url: (guardado.leer("chqPuente") || "").trim().replace(/\/+$/, ""), llave: (guardado.leer("chqLlave") || "").trim()};
+}
+function chqGuardarPuente(){
+  let url = $("chqPuente").value.trim().replace(/\/+$/, "");
+  if (url && !/^https?:\/\//i.test(url)) url = "https://" + url;
+  $("chqPuente").value = url;
+  guardado.poner("chqPuente", url); guardado.poner("chqLlave", $("chqLlave").value.trim());
+  $("chqPuenteInfo").textContent = url && $("chqLlave").value.trim() ? "Guardado en este aparato." : "Sin configurar.";
+}
+async function chqLlamarPuente(ruta, cuerpo, ms){
+  const p = chqPuenteDatos();
+  if (!p.url || !p.llave) throw new Error("Configura la dirección y la llave del puente (más abajo)");
+  if (location.protocol === "https:" && p.url.startsWith("http:")) throw new Error("Desde esta web hace falta una dirección https (tailscale serve)");
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), ms);
+  try {
+    const r = await fetch(p.url + ruta, {method: cuerpo ? "POST" : "GET", signal: ctl.signal, cache: "no-store",
+      headers: {"Authorization": "Bearer " + p.llave, ...(cuerpo ? {"Content-Type": "application/json"} : {})},
+      body: cuerpo ? JSON.stringify(cuerpo) : undefined});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) throw new Error(j.error || `El puente contesta ${r.status}`);
+    return j;
+  } catch (e) {
+    if (e.name === "AbortError") throw new Error("El puente tarda demasiado");
+    if (e instanceof TypeError) throw new Error("No llego al puente: ¿Acer encendido, puente arrancado y Tailscale activo en este aparato?");
+    throw e;
+  } finally { clearTimeout(t); }
+}
+async function chqProbarPuente(){
+  chqGuardarPuente();
+  $("chqPuenteInfo").textContent = "Probando…";
+  try {
+    const j = await chqLlamarPuente("/salud", null, 10000);
+    $("chqPuenteInfo").textContent = j.claude ? "Conectado ✓ · Claude Code encontrado en el Acer" : "Conectado, pero el Acer no encuentra Claude Code";
+  } catch (e) { $("chqPuenteInfo").textContent = e.message; }
 }
 async function chqLeerVin(){
   if (!chqConectado()) return tostada("Primero conecta con el coche");
@@ -2536,8 +2553,8 @@ function chqPintarResultado(d){
     <div class="tabla-scroll"><table class="tabla-comp"><thead><tr><th>Parámetro</th><th>Ralentí</th><th>2.500</th><th></th></tr></thead><tbody>${filas}</tbody></table></div>
     <h3>Comprobaciones automáticas <span style="text-transform:none;font-weight:400">· reglas fijas, sin IA</span></h3>
     ${av.length ? av.map(x => `<div class="aviso ${x.nivel === "rojo" ? "rojo" : ""}" style="margin-top:6px">${esc(x.texto)}</div>`).join("") : `<div class="vacio">Nada fuera de lo normal con estas reglas.</div>`}
-    <h3>Análisis IA</h3>
-    <div class="fila"><button class="boton primario" id="btnIA" onclick="chqAnalizarIA()" ${d.ralenti && d["2500"] ? "" : "disabled"}>${d.ia ? "Volver a analizar" : "Analizar con IA"}</button>
+    <h3>Análisis de tu Claude</h3>
+    <div class="fila"><button class="boton primario" id="btnIA" onclick="chqAnalizarIA()" ${d.ralenti && d["2500"] ? "" : "disabled"}>${d.ia ? "Volver a analizar" : "Analizar con mi Claude"}</button>
       <button class="boton chico" onclick="chqCopiar()">Copiar datos (JSON)</button>
       <button class="boton chico" onclick="chqBuzon()">Mandar al buzón de Claude</button></div>
     ${d.ralenti && d["2500"] ? "" : `<div class="mensaje-con">Falta una de las dos fases para poder analizar.</div>`}
@@ -2546,24 +2563,14 @@ function chqPintarResultado(d){
 
 async function chqAnalizarIA(){
   const d = chq.ver; if (!d) return;
-  const clave = guardado.leer("chqClave") || $("chqClave").value.trim();
-  if (!clave) return tostada("Pon tu clave de la API de Anthropic (más abajo) o usa «Copiar datos»");
-  if (!navigator.onLine) return tostada("Sin internet");
-  const modelo = guardado.leer("chqModeloIA") || CHQ_MODELO, b = $("btnIA"), caja = $("chqIA");
-  b.disabled = true; b.textContent = "Analizando…"; caja.innerHTML = `<div class="vacio">Esperando a la IA…</div>`;
+  const b = $("btnIA"), caja = $("chqIA");
+  b.disabled = true; b.textContent = "Analizando…";
+  caja.innerHTML = `<div class="vacio">Tu Claude está analizando (puede tardar 1–2 minutos)…</div>`;
   try {
-    const r = await fetch("https://api.anthropic.com/v1/messages", {method: "POST", headers: {
-        "x-api-key": clave, "anthropic-version": "2023-06-01", "content-type": "application/json",
-        "anthropic-dangerous-direct-browser-access": "true"},
-      body: JSON.stringify({model: modelo, max_tokens: 2000, system: CHQ_PROMPT,
-        messages: [{role: "user", content: "Datos OBD2 capturados (JSON):\n" + JSON.stringify(d.para_ia, null, 1)}]})});
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(j?.error?.message || `La API contesta ${r.status}`);
-    const texto = (j.content || []).filter(c => c.type === "text").map(c => c.text).join("\n").trim();
-    if (!texto) throw new Error("La IA no ha devuelto texto");
-    caja.innerHTML = md(texto) + `<p class="mensaje-con">${esc(j.model || modelo)}</p>`;
-    await api("/api/chequeo", {accion: "guardar_ia", id: d.id, texto, modelo: j.model || modelo});
-    d.ia = {texto, modelo: j.model || modelo};
+    const j = await chqLlamarPuente("/analizar", {datos: d.para_ia}, 270000);
+    caja.innerHTML = md(j.texto) + `<p class="mensaje-con">${esc(j.modelo || "Claude")}</p>`;
+    await api("/api/chequeo", {accion: "guardar_ia", id: d.id, texto: j.texto, modelo: j.modelo || "Claude (cuenta Pro)"});
+    d.ia = {texto: j.texto, modelo: j.modelo};
     chqHistorial();
   } catch (e) {
     caja.innerHTML = `<div class="aviso rojo">No se pudo analizar: ${esc(e.message || e)}</div>`;
@@ -2572,7 +2579,7 @@ async function chqAnalizarIA(){
 function chqTextoDatos(){ return JSON.stringify(chq.ver.para_ia, null, 1); }
 async function chqCopiar(){
   if (!chq.ver) return;
-  const t = "SYSTEM PROMPT:\n" + CHQ_PROMPT + "\n\nDATOS OBD2 (JSON):\n" + chqTextoDatos();
+  const t = "SYSTEM PROMPT:\n" + (chq.ver.prompt || "") + "\n\nDATOS OBD2 (JSON):\n" + chqTextoDatos();
   try { await navigator.clipboard.writeText(t); tostada("Copiado: prompt + datos"); }
   catch { prompt("Copia esto:", t); }
 }

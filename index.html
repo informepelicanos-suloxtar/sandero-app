@@ -1122,7 +1122,7 @@ function cajasMezcla(v){
   const sinSonda = sis != null && sis !== 2 && sis !== 16;
   const tot = (st != null && lt != null) ? st + lt : null;
   return [
-    [sinSonda ? "Sin sonda" : pc(st), sinSonda ? "Corrige ahora: motor frío, a fondo o soltando gas" : "Corrige ahora (en directo)", sinSonda || st == null ? "gris" : nivel(st)],
+    [sinSonda ? "Sin sonda" : pc(st), sinSonda ? "No corrige ahora: motor frío, pisando a fondo o soltando el gas" : "Corrige ahora (sonda delantera)", sinSonda || st == null ? "gris" : nivel(st)],
     [pc(lt), "Aprendida (la guarda de otros viajes)", nivel(lt)],
     [pc(tot), "Mezcla total", nivel(tot)],
   ];

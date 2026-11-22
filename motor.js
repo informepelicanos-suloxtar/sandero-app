@@ -10,7 +10,7 @@
  */
 (() => {
 "use strict";
-const VERSION = "0bd256f70b";
+const VERSION = "f8b4a59f41";
 const PY = ["pids.py", "averias.py", "diagnostico.py", "analisis.py", "rutas.py", "deposito.py", "servidor.py", "elm327.py", "simulador.py", "movil_py.py"];
 const espera = ms => new Promise(r => setTimeout(r, ms));
 const h2 = n => n.toString(16).toUpperCase().padStart(2, "0");
@@ -782,6 +782,13 @@ function base64(bytes) {
   return btoa(s);
 }
 
+function deBase64(b64) {
+  const bin = atob(String(b64 || "").replace(/^data:[^,]+,/, "").replace(/\s+/g, ""));
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
 async function commitArchivos(archivos, mensaje) {  // archivos: [[ruta en el repo, Uint8Array]] → un solo commit en main
   const blobs = [];
   for (const [ruta, bytes] of archivos)
@@ -1083,9 +1090,10 @@ async function leerClaude(forzar) {
   }
 }
 
-async function escribirBuzon(texto) {
+async function escribirBuzon(texto, fotos) {
   texto = String(texto || "").trim().slice(0, 4000);
-  if (!texto) return { ok: false, error: "Mensaje vacío" };
+  const listaFotos = Array.isArray(fotos) ? fotos.filter(f => f && f.b64).slice(0, 8) : [];
+  if (!texto && !listaFotos.length) return { ok: false, error: "Mensaje vacío" };
   if (!nube().token) return { ok: false, error: "Primero pon la llave de GitHub (arriba)." };
   if (!navigator.onLine) return { ok: false, error: "Sin internet: inténtalo luego." };
   try {
@@ -1093,10 +1101,23 @@ async function escribirBuzon(texto) {
       || "# Buzón: mensajes de Saúl para Claude\n\nLo escribe Saúl desde la web (pestaña 💬 Claude). Claude lo lee al decirle «lee el buzón del coche» y contesta en MENSAJES.md.\n";
     const ahora = new Date(), d = n => String(n).padStart(2, "0");
     const fecha = `${ahora.getFullYear()}-${d(ahora.getMonth() + 1)}-${d(ahora.getDate())} ${d(ahora.getHours())}:${d(ahora.getMinutes())}`;
-    const nuevo = previo.trimEnd() + `\n\n## ${fecha} · Saúl (desde el móvil)\n${texto}\n`;
-    await commitArchivos([["BUZON.md", new TextEncoder().encode(nuevo)]], "Buzón: mensaje de Saúl desde el móvil");
+    const sello = `${ahora.getFullYear()}-${d(ahora.getMonth() + 1)}-${d(ahora.getDate())}_${d(ahora.getHours())}${d(ahora.getMinutes())}${d(ahora.getSeconds())}`;
+    const archivos = [], lineasFotos = [];
+    for (let i = 0; i < listaFotos.length; i++) {
+      const bytes = deBase64(listaFotos[i].b64);
+      if (!bytes.length || bytes.length > 3 * 1024 * 1024) continue;
+      const ruta = `fotos/${sello}_${i + 1}.jpg`;
+      archivos.push([ruta, bytes]);
+      lineasFotos.push(`![Foto ${i + 1}](${ruta})`);
+    }
+    if (!texto && !archivos.length) return { ok: false, error: "No se pudo leer ninguna foto" };
+    const cuerpo = [texto, ...lineasFotos].filter(Boolean).join("\n");
+    const nuevo = previo.trimEnd() + `\n\n## ${fecha} · Saúl (desde el móvil)\n${cuerpo}\n`;
+    archivos.push(["BUZON.md", new TextEncoder().encode(nuevo)]);
+    const notaFotos = lineasFotos.length ? ` (${lineasFotos.length === 1 ? "1 foto" : lineasFotos.length + " fotos"})` : "";
+    await commitArchivos(archivos, `Buzón: mensaje de Saúl desde el móvil${notaFotos}`);
     try { localStorage.removeItem("claudeCopia"); } catch {}
-    return { ok: true, dato: "Enviado ✓ Claude contesta en 1-3 minutos (pulsa ↻ Actualizar)" };
+    return { ok: true, dato: `Enviado ✓${notaFotos} Claude contesta en 1-3 minutos (pulsa ↻ Actualizar)` };
   } catch (e) { return { ok: false, error: e.message || String(e) }; }
 }
 
@@ -1143,7 +1164,7 @@ async function api(ruta, cuerpo) {
       return accion("empezar", { prueba: cuerpo.prueba || "libre" });
     case "/api/parar": { const r = accion("parar", {}); setTimeout(subirPendientes, 2000); return r; }
     case "/api/nube": return ponerLlave(cuerpo.token);
-    case "/api/buzon": return escribirBuzon(cuerpo.texto);
+    case "/api/buzon": return escribirBuzon(cuerpo.texto, cuerpo.fotos);
     case "/api/subir": {
       if (!nube().token) return { ok: false, error: "Primero pon la llave de GitHub" };
       if (!navigator.onLine) return { ok: false, error: "Sin internet: se subirán solas cuando vuelva" };
@@ -1214,7 +1235,7 @@ function ajustarTextos() {  // lo poco que cambia respecto al Mac
   if (h) h.innerHTML = "Se guardan en este móvil y, si has puesto la llave de GitHub (pestaña 💬 Claude), se suben solas al "
     + "terminar cada grabación. Luego dile a Claude: <b>«revisa la última grabación del coche»</b> y su respuesta sale en 💬 Claude.";
   const b = document.getElementById("textoBuzon");
-  if (b) b.innerHTML = "Claude lo lee solo y contesta aquí arriba en 1-3 minutos (desde el portátil de la azotea). "
+  if (b) b.innerHTML = "Claude lo lee solo (texto y fotos) y contesta aquí arriba en 1-3 minutos (desde el portátil de la azotea). "
     + "Pulsa <b>↻ Actualizar</b> para verlo.";
   const m = document.getElementById("textoMantenimiento");
   if (m) m.innerHTML = "Puedes marcar cada tarea según la vayas haciendo. Se guarda en este móvil y, con la llave de GitHub "

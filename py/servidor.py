@@ -498,15 +498,37 @@ def leer_claude():
             "origen": "Leído en el Mac (~/coche-obd). Lo que escribas desde el móvil llega al hacer git pull."}
 
 
-def escribir_buzon(texto):
-    """Mensaje de Saúl para Claude: se añade al final de BUZON.md."""
+def escribir_buzon(texto, fotos=None):
+    """Mensaje de Saúl para Claude (con fotos opcionales en fotos/): se añade al final de BUZON.md."""
+    import base64 as _b64
     texto = str(texto or "").strip()[:4000]
-    if not texto:
+    lista_fotos = [f for f in (fotos or []) if isinstance(f, dict) and f.get("b64")][:8]
+    if not texto and not lista_fotos:
         return False, "Mensaje vacío"
+    sello = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    lineas_fotos = []
+    if lista_fotos:
+        carpeta = BASE / "fotos"
+        carpeta.mkdir(exist_ok=True)
+        for i, f in enumerate(lista_fotos, 1):
+            raw = str(f.get("b64") or "").split(",")[-1]
+            try:
+                datos = _b64.b64decode(raw, validate=True)
+            except Exception:
+                continue
+            if not datos or len(datos) > 3 * 1024 * 1024:
+                continue
+            ruta = f"fotos/{sello}_{i}.jpg"
+            (BASE / ruta).write_bytes(datos)
+            lineas_fotos.append(f"![Foto {i}]({ruta})")
+    if not texto and not lineas_fotos:
+        return False, "No se pudo leer ninguna foto"
+    cuerpo = "\n".join(x for x in [texto, *lineas_fotos] if x)
     p = BASE / "BUZON.md"
     previo = p.read_text() if p.exists() else BUZON_CABECERA
-    p.write_text(previo.rstrip() + f"\n\n## {datetime.now().strftime('%Y-%m-%d %H:%M')} · Saúl (desde el Mac)\n{texto}\n")
-    return True, "Guardado en el buzón"
+    p.write_text(previo.rstrip() + f"\n\n## {datetime.now().strftime('%Y-%m-%d %H:%M')} · Saúl (desde el Mac)\n{cuerpo}\n")
+    nota = f" ({len(lineas_fotos)} foto{'s' if len(lineas_fotos) != 1 else ''})" if lineas_fotos else ""
+    return True, f"Guardado en el buzón{nota}"
 
 
 BUZON_CABECERA = ("# Buzón: mensajes de Saúl para Claude\n\n"
@@ -916,7 +938,7 @@ class Manejador(BaseHTTPRequestHandler):
             ok, dato = cambiar_deposito(cuerpo)
             return self._json({"ok": ok, "dato" if ok else "error": dato}, 200 if ok else 400)
         if ruta == "/api/buzon":
-            ok, dato = escribir_buzon(cuerpo.get("texto"))
+            ok, dato = escribir_buzon(cuerpo.get("texto"), cuerpo.get("fotos"))
             return self._json({"ok": ok, "dato" if ok else "error": dato}, 200 if ok else 400)
         if ruta == "/api/borrar_sesion":
             ok = borrar_sesion(cuerpo.get("carpeta"))

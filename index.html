@@ -98,6 +98,11 @@ nav .cuenta{display:inline-block;min-width:20px;padding:0 6px;border-radius:999p
 .md td,.md th{border:1px solid var(--linea);padding:4px 7px;vertical-align:top;text-align:left}
 textarea.caja{font:inherit;width:100%;min-height:86px;padding:11px 12px;border-radius:10px;border:1px solid var(--linea);background:var(--panel2);color:var(--txt);resize:vertical}
 .nube-ok{color:var(--verde);font-weight:600}.nube-mal{color:var(--rojo);font-weight:600}
+.fotos-prev{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.foto-item{position:relative;width:72px;height:72px;border-radius:10px;overflow:hidden;border:1px solid var(--linea);background:var(--panel2)}
+.foto-item img{width:100%;height:100%;object-fit:cover;display:block}
+.foto-item button{position:absolute;top:2px;right:2px;width:22px;height:22px;border:0;border-radius:999px;background:rgba(0,0,0,.72);color:#fff;font-size:13px;line-height:22px;padding:0;text-align:center}
+.foto-chip{display:inline-block;padding:2px 8px;border-radius:999px;background:var(--panel2);border:1px solid var(--linea);font-size:13px;color:var(--sub);margin:2px 4px 2px 0}
 /* resumen */
 .resumen{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px}
 .resumen .caja{flex:1;min-width:140px;padding:12px 14px;border-radius:12px;background:var(--panel);border:1px solid var(--linea)}
@@ -502,9 +507,14 @@ label.marca{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size
     </div>
     <div class="panel">
       <h2 style="margin:0 0 6px">Escribir a Claude</h2>
-      <textarea class="caja" id="txtBuzon" placeholder="Ej.: «He cambiado el termostato», «hoy huele a gasolina», «revisa la grabación de esta mañana»…"></textarea>
-      <div class="fila" style="margin-top:8px"><button class="boton primario" onclick="mandarBuzon()">Enviar</button>
-        <span class="mensaje-con" id="textoBuzon" style="margin:0">Se guarda en el buzón (<code>BUZON.md</code>). Claude lo lee cuando le digas «lee el buzón del coche».</span></div>
+      <textarea class="caja" id="txtBuzon" placeholder="Ej.: «He cambiado el termostato», «mira las fotos del menú oculto», «revisa la grabación de esta mañana»…"></textarea>
+      <input type="file" id="inpFotosBuzon" accept="image/*" multiple hidden onchange="elegirFotosBuzon(this.files);this.value=''">
+      <div id="fotosBuzonPrev" class="fotos-prev" hidden></div>
+      <div class="fila" style="margin-top:8px">
+        <button class="boton primario" id="btnBuzonEnviar" onclick="mandarBuzon()">Enviar</button>
+        <button class="boton" type="button" onclick="$('inpFotosBuzon').click()">📷 Fotos</button>
+        <span class="mensaje-con" id="textoBuzon" style="margin:0">Se guarda en el buzón (<code>BUZON.md</code>). Claude lo lee cuando le digas «lee el buzón del coche».</span>
+      </div>
       <div id="buzonLista" class="md" style="margin-top:10px"></div>
     </div>
   </section>
@@ -740,6 +750,7 @@ document.querySelectorAll("#pestanas button").forEach(b => b.onclick = () => mos
 function mdLinea(t){
   return esc(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>")
     .replace(/(^|[\s(])\*([^*\s][^*]*?)\*(?=[\s).,;:]|$)/g, "$1<i>$2</i>")
+    .replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_, alt) => `<span class="foto-chip">📷 ${alt || "Foto"}</span>`)
     .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
 }
 function md(texto){  // Markdown sencillo: títulos, listas, tablas, negritas y código
@@ -793,15 +804,64 @@ function verHistorial(){
   $("btnHistorial").textContent = e.hidden ? "Ver el historial completo de las charlas" : "Ocultar el historial";
   if (!e.hidden) e.innerHTML = claudeCache?.historial ? md(claudeCache.historial) : "<span class='vacio'>No hay historial.</span>";
 }
+let fotosBuzon = [];
+function pintarFotosBuzon(){
+  const box = $("fotosBuzonPrev");
+  box.hidden = !fotosBuzon.length;
+  box.innerHTML = fotosBuzon.map((f, i) =>
+    `<div class="foto-item"><img src="${f.dataUrl}" alt="${esc(f.nombre)}"><button type="button" aria-label="Quitar foto" onclick="quitarFotoBuzon(${i})">✕</button></div>`).join("");
+}
+function quitarFotoBuzon(i){ fotosBuzon.splice(i, 1); pintarFotosBuzon(); }
+function comprimirFoto(file, maxLado = 1600, calidad = 0.82){
+  return new Promise((ok, mal) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+        if (!w || !h) throw new Error("Imagen vacía");
+        const k = Math.min(1, maxLado / Math.max(w, h));
+        w = Math.max(1, Math.round(w * k)); h = Math.max(1, Math.round(h * k));
+        const c = document.createElement("canvas");
+        c.width = w; c.height = h;
+        c.getContext("2d").drawImage(img, 0, 0, w, h);
+        const dataUrl = c.toDataURL("image/jpeg", calidad);
+        const b64 = dataUrl.split(",")[1] || "";
+        if (!b64) throw new Error("No se pudo comprimir la foto");
+        ok({ dataUrl, b64, nombre: file.name || "foto.jpg" });
+      } catch (e) { mal(e); } finally { URL.revokeObjectURL(url); }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); mal(new Error("No se pudo leer la foto")); };
+    img.src = url;
+  });
+}
+async function elegirFotosBuzon(files){
+  if (!files || !files.length) return;
+  const libres = 8 - fotosBuzon.length;
+  if (libres <= 0) return tostada("Máximo 8 fotos por envío");
+  const lista = [...files].slice(0, libres);
+  if (files.length > libres) tostada("Solo caben 8 fotos por envío");
+  for (const f of lista) {
+    if (f.type && !f.type.startsWith("image/")) continue;
+    try { fotosBuzon.push(await comprimirFoto(f)); pintarFotosBuzon(); }
+    catch (e) { tostada(e.message || "Error al preparar una foto"); }
+  }
+}
 async function mandarBuzon(){
   const t = $("txtBuzon").value.trim();
-  if (!t) return tostada("Escribe algo primero");
-  tostada("Enviando…");
-  const r = await api("/api/buzon", {texto: t});
-  if (!r.ok) return tostada(r.error || "No se pudo enviar");
-  $("txtBuzon").value = "";
-  tostada(r.dato || "Enviado a Claude");
-  cargarClaude();
+  if (!t && !fotosBuzon.length) return tostada("Escribe algo o adjunta una foto");
+  const btn = $("btnBuzonEnviar");
+  if (btn) btn.disabled = true;
+  try {
+    tostada(fotosBuzon.length ? `Subiendo ${fotosBuzon.length === 1 ? "foto" : fotosBuzon.length + " fotos"}…` : "Enviando…");
+    const r = await api("/api/buzon", {texto: t, fotos: fotosBuzon.map(f => ({b64: f.b64, nombre: f.nombre}))});
+    if (!r.ok) return tostada(r.error || "No se pudo enviar");
+    $("txtBuzon").value = "";
+    fotosBuzon = [];
+    pintarFotosBuzon();
+    tostada(r.dato || "Enviado a Claude");
+    cargarClaude();
+  } finally { if (btn) btn.disabled = false; }
 }
 function pintarNube(n){  // solo en la app del móvil: subida de grabaciones a GitHub
   const el = $("panelNube");
